@@ -36,7 +36,11 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: 1.93.0
           components: clippy
+
+      - name: Verify clippy component
+        run: rustup component list --installed | grep '^clippy'
 
       - name: Rust lint (clippy)
         working-directory: src-tauri
