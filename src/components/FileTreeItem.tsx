@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, FileText, Folder } from "lucide-react";
 import type { FileEntry } from "../types";
 import { useActiveWorkspace, useAppDispatch, useAppState } from "../context/AppContext";
 import { readFileContent } from "../lib/tauri";
-import { isTextPreviewPath } from "../viewers/fileTypes";
+import { requiresRawTextContent } from "../viewers/fileTypes";
 import { FileTree } from "./FileTree";
 
 interface FileTreeItemProps {
@@ -35,7 +35,7 @@ export function FileTreeItem({ entry, depth }: FileTreeItemProps) {
         payload: { workspaceId: activeWorkspaceId, filePath: entry.path }
       });
       try {
-        const content = isTextPreviewPath(entry.path)
+        const content = requiresRawTextContent(entry.path)
           ? await readFileContent(entry.path)
           : "";
         dispatch({

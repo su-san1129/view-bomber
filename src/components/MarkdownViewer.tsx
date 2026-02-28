@@ -5,7 +5,7 @@ import { useActiveWorkspace, useAppDispatch, useAppState } from "../context/AppC
 import { readFileContent } from "../lib/tauri";
 import { EmptyState } from "./EmptyState";
 import { FindBar } from "./FindBar";
-import { isTextPreviewPath } from "../viewers/fileTypes";
+import { requiresRawTextContent } from "../viewers/fileTypes";
 import { resolveViewer } from "../viewers/registry";
 
 export function MarkdownViewer() {
@@ -41,7 +41,7 @@ export function MarkdownViewer() {
           const kind = event.type;
           if (typeof kind === "object" && "modify" in kind) {
             try {
-              const content = isTextPreviewPath(selectedFilePath)
+              const content = requiresRawTextContent(selectedFilePath)
                 ? await readFileContent(selectedFilePath)
                 : "";
               if (!activeWorkspaceId) return;

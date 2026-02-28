@@ -1,10 +1,10 @@
 use calamine::{open_workbook_auto, Reader};
+use csv::{ByteRecord, ReaderBuilder};
 use quick_xml::events::Event;
 use quick_xml::Reader as XmlReader;
 use serde::Serialize;
 use std::fs;
-use std::io::BufRead;
-use std::io::Read;
+use std::io::{BufRead, Read, Seek, SeekFrom};
 use std::path::Path;
 use walkdir::WalkDir;
 use zip::ZipArchive;
@@ -39,6 +39,15 @@ pub struct XlsxData {
 #[derive(Debug, Clone, Serialize)]
 pub struct DocxTextData {
     pub text: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CsvChunkData {
+    pub delimiter: String,
+    pub header: Vec<String>,
+    pub rows: Vec<Vec<String>>,
+    pub next_cursor: Option<u64>,
+    pub eof: bool,
 }
 
 fn text_extensions() -> Vec<String> {
@@ -283,9 +292,125 @@ fn has_extension(path: &Path, expected_extension: &str) -> bool {
         .unwrap_or(false)
 }
 
+fn parse_delimiter_hint(delimiter_hint: Option<String>) -> Option<u8> {
+    delimiter_hint.and_then(|delimiter| match delimiter.as_str() {
+        "," => Some(b','),
+        "\t" => Some(b'\t'),
+        ";" => Some(b';'),
+        _ => None,
+    })
+}
+
+fn split_csv_line_simple(line: &str, delimiter: char) -> Vec<String> {
+    let mut cells: Vec<String> = Vec::new();
+    let mut current = String::new();
+    let mut in_quotes = false;
+    let chars: Vec<char> = line.chars().collect();
+    let mut i = 0usize;
+
+    while i < chars.len() {
+        let ch = chars[i];
+        if ch == '"' {
+            if in_quotes && i + 1 < chars.len() && chars[i + 1] == '"' {
+                current.push('"');
+                i += 2;
+                continue;
+            }
+            in_quotes = !in_quotes;
+            i += 1;
+            continue;
+        }
+
+        if !in_quotes && ch == delimiter {
+            cells.push(current);
+            current = String::new();
+            i += 1;
+            continue;
+        }
+
+        current.push(ch);
+        i += 1;
+    }
+
+    cells.push(current);
+    cells
+}
+
+fn score_delimiter(lines: &[String], delimiter: char) -> i64 {
+    let mut total_columns = 0i64;
+    let mut stable_rows = 0i64;
+    let mut expected: Option<usize> = None;
+
+    for line in lines {
+        let columns = split_csv_line_simple(line, delimiter).len();
+        total_columns += columns as i64;
+        if let Some(value) = expected {
+            if value == columns {
+                stable_rows += 1;
+            }
+        } else {
+            expected = Some(columns);
+            stable_rows += 1;
+        }
+    }
+
+    total_columns + stable_rows * 2
+}
+
+fn detect_csv_delimiter(file_path: &Path, file: &mut fs::File) -> Result<u8, String> {
+    if has_extension(file_path, "tsv") {
+        return Ok(b'\t');
+    }
+
+    let mut buf = vec![0u8; 128 * 1024];
+    file.seek(SeekFrom::Start(0))
+        .map_err(|e| format!("Failed to seek csv file: {}", e))?;
+    let len = file
+        .read(&mut buf)
+        .map_err(|e| format!("Failed to read csv sample: {}", e))?;
+    let sample = String::from_utf8_lossy(&buf[..len]).to_string();
+    let lines = sample
+        .lines()
+        .map(|line| line.trim().to_string())
+        .filter(|line| !line.is_empty())
+        .take(20)
+        .collect::<Vec<String>>();
+
+    if lines.is_empty() {
+        return Ok(b',');
+    }
+
+    let candidates = [',', '\t', ';'];
+    let mut best = ',';
+    let mut best_score = i64::MIN;
+    for candidate in candidates {
+        let score = score_delimiter(&lines, candidate);
+        if score > best_score {
+            best_score = score;
+            best = candidate;
+        }
+    }
+    Ok(best as u8)
+}
+
+fn record_to_row(record: &ByteRecord) -> Vec<String> {
+    record
+        .iter()
+        .map(|field| String::from_utf8_lossy(field).to_string())
+        .collect::<Vec<String>>()
+}
+
+fn row_has_visible_content(row: &[String]) -> bool {
+    row.len() > 1
+        || row
+            .first()
+            .map(|cell| !cell.trim().is_empty())
+            .unwrap_or(false)
+}
+
 fn parse_xlsx(path: &Path) -> Result<XlsxData, String> {
-    let mut workbook = open_workbook_auto(path)
-        .map_err(|e| format!("Failed to open xlsx workbook: {}", e))?;
+    let mut workbook =
+        open_workbook_auto(path).map_err(|e| format!("Failed to open xlsx workbook: {}", e))?;
     let sheet_names = workbook.sheet_names().to_owned();
 
     let mut sheets: Vec<XlsxSheetData> = Vec::new();
@@ -301,7 +426,11 @@ fn parse_xlsx(path: &Path) -> Result<XlsxData, String> {
 
         let rows = range
             .rows()
-            .map(|row| row.iter().map(|cell| cell.to_string()).collect::<Vec<String>>())
+            .map(|row| {
+                row.iter()
+                    .map(|cell| cell.to_string())
+                    .collect::<Vec<String>>()
+            })
             .collect::<Vec<Vec<String>>>();
 
         sheets.push(XlsxSheetData {
@@ -386,7 +515,12 @@ fn search_line_matches(
     matches
 }
 
-fn search_plain_text_file(path: &Path, query: &str, query_lower: &str, case_sensitive: bool) -> Vec<SearchMatch> {
+fn search_plain_text_file(
+    path: &Path,
+    query: &str,
+    query_lower: &str,
+    case_sensitive: bool,
+) -> Vec<SearchMatch> {
     let file = match fs::File::open(path) {
         Ok(file) => file,
         Err(_) => return Vec::new(),
@@ -400,7 +534,12 @@ fn search_plain_text_file(path: &Path, query: &str, query_lower: &str, case_sens
     )
 }
 
-fn search_xlsx_file(path: &Path, query: &str, query_lower: &str, case_sensitive: bool) -> Vec<SearchMatch> {
+fn search_xlsx_file(
+    path: &Path,
+    query: &str,
+    query_lower: &str,
+    case_sensitive: bool,
+) -> Vec<SearchMatch> {
     let workbook = match parse_xlsx(path) {
         Ok(workbook) => workbook,
         Err(_) => return Vec::new(),
@@ -409,13 +548,23 @@ fn search_xlsx_file(path: &Path, query: &str, query_lower: &str, case_sensitive:
     let mut lines: Vec<String> = Vec::new();
     for sheet in &workbook.sheets {
         for (row_index, row) in sheet.rows.iter().enumerate() {
-            lines.push(format!("[{}:{}] {}", sheet.name, row_index + 1, row.join(" | ")));
+            lines.push(format!(
+                "[{}:{}] {}",
+                sheet.name,
+                row_index + 1,
+                row.join(" | ")
+            ));
         }
     }
     search_line_matches(lines.into_iter(), query, query_lower, case_sensitive)
 }
 
-fn search_docx_file(path: &Path, query: &str, query_lower: &str, case_sensitive: bool) -> Vec<SearchMatch> {
+fn search_docx_file(
+    path: &Path,
+    query: &str,
+    query_lower: &str,
+    case_sensitive: bool,
+) -> Vec<SearchMatch> {
     let text = match parse_docx_text(path) {
         Ok(text) => text,
         Err(_) => return Vec::new(),
@@ -546,6 +695,103 @@ pub async fn read_docx_text(path: String) -> Result<DocxTextData, String> {
     parse_docx_text(file_path).map(|text| DocxTextData { text })
 }
 
+#[tauri::command]
+pub async fn read_csv_chunk(
+    path: String,
+    cursor: Option<u64>,
+    max_rows: Option<usize>,
+    delimiter_hint: Option<String>,
+) -> Result<CsvChunkData, String> {
+    let file_path = Path::new(&path);
+    if !file_path.exists() {
+        return Err(format!("File not found: {}", path));
+    }
+    if !file_path.is_file() {
+        return Err(format!("Not a file: {}", path));
+    }
+    if !has_extension(file_path, "csv") && !has_extension(file_path, "tsv") {
+        return Err("Target file is not .csv or .tsv".to_string());
+    }
+
+    let start_cursor = cursor.unwrap_or(0);
+    let rows_limit = max_rows.unwrap_or(500).max(1);
+
+    let mut file = fs::File::open(file_path).map_err(|e| format!("Failed to open file: {}", e))?;
+
+    let delimiter = if let Some(hint) = parse_delimiter_hint(delimiter_hint.clone()) {
+        hint
+    } else {
+        detect_csv_delimiter(file_path, &mut file)?
+    };
+
+    file.seek(SeekFrom::Start(start_cursor))
+        .map_err(|e| format!("Failed to seek csv file: {}", e))?;
+
+    let mut reader = ReaderBuilder::new()
+        .has_headers(false)
+        .flexible(true)
+        .delimiter(delimiter)
+        .from_reader(file);
+
+    let mut header: Vec<String> = Vec::new();
+    let mut rows: Vec<Vec<String>> = Vec::new();
+    let mut next_cursor = start_cursor;
+    let mut eof = false;
+    let mut record = ByteRecord::new();
+
+    if start_cursor == 0 {
+        loop {
+            match reader.read_byte_record(&mut record) {
+                Ok(true) => {
+                    next_cursor = reader.position().byte();
+                    let row = record_to_row(&record);
+                    if row_has_visible_content(&row) {
+                        header = row;
+                        break;
+                    }
+                }
+                Ok(false) => {
+                    eof = true;
+                    break;
+                }
+                Err(err) => return Err(format!("Failed to parse csv header: {}", err)),
+            }
+        }
+    }
+
+    while rows.len() < rows_limit {
+        match reader.read_byte_record(&mut record) {
+            Ok(true) => {
+                next_cursor = reader.position().byte();
+                let row = record_to_row(&record);
+                if row_has_visible_content(&row) {
+                    rows.push(row);
+                }
+            }
+            Ok(false) => {
+                eof = true;
+                break;
+            }
+            Err(err) => return Err(format!("Failed to parse csv rows: {}", err)),
+        }
+    }
+
+    let response_next_cursor = if eof { None } else { Some(next_cursor) };
+    let delimiter_string = match delimiter {
+        b'\t' => "\t".to_string(),
+        b';' => ";".to_string(),
+        _ => ",".to_string(),
+    };
+
+    Ok(CsvChunkData {
+        delimiter: delimiter_string,
+        header,
+        rows,
+        next_cursor: response_next_cursor,
+        eof,
+    })
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct SearchMatch {
     pub line_number: usize,
@@ -592,7 +838,10 @@ pub async fn search_files(
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| !is_hidden_path_except_text_special(e.path()))
-        .filter(|e| e.file_type().is_file() && matches_search_target(e.path(), &extensions, include_text_special))
+        .filter(|e| {
+            e.file_type().is_file()
+                && matches_search_target(e.path(), &extensions, include_text_special)
+        })
     {
         let path = entry.path();
         let file_matches = if has_extension(path, "xlsx") || has_extension(path, "xlsm") {
@@ -674,6 +923,8 @@ mod tests {
     fn hidden_filter_allows_text_special_files_only() {
         assert!(!is_hidden_path_except_text_special(Path::new("/tmp/.env")));
         assert!(is_hidden_path_except_text_special(Path::new("/tmp/.git")));
-        assert!(is_hidden_path_except_text_special(Path::new("/tmp/.secret/notes.txt")));
+        assert!(is_hidden_path_except_text_special(Path::new(
+            "/tmp/.secret/notes.txt"
+        )));
     }
 }

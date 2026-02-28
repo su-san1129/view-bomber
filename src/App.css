@@ -630,10 +630,19 @@ mark.find-highlight-current {
   font-size: var(--font-ui);
 }
 
+.csv-meta-note {
+  margin-top: -2px;
+  font-size: var(--font-label);
+}
+
 .csv-table-wrap {
   overflow: auto;
   border: 1px solid var(--md-table-border);
   border-radius: 8px;
+}
+
+.csv-table-wrap-virtual {
+  max-height: 70vh;
 }
 
 .csv-table {

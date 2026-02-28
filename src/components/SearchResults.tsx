@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, FileText } from "lucide-react";
 import type { SearchFileResult } from "../types";
 import { useActiveWorkspace, useAppDispatch, useAppState } from "../context/AppContext";
 import { readFileContent } from "../lib/tauri";
-import { isTextPreviewPath } from "../viewers/fileTypes";
+import { requiresRawTextContent } from "../viewers/fileTypes";
 
 function highlightMatch(text: string, query: string, caseSensitive: boolean): ReactNode {
   if (!query) return text;
@@ -52,7 +52,7 @@ function SearchFileGroup({ result }: { result: SearchFileResult; }) {
       payload: { workspaceId: activeWorkspaceId, filePath }
     });
     try {
-      const content = isTextPreviewPath(filePath)
+      const content = requiresRawTextContent(filePath)
         ? await readFileContent(filePath)
         : "";
       dispatch({

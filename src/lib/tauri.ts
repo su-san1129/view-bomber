@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import type {
+  CsvChunkData,
   DocxTextData,
   FileEntry,
   SearchFileResult,
@@ -45,4 +46,18 @@ export async function readXlsx(path: string): Promise<XlsxData> {
 
 export async function readDocxText(path: string): Promise<DocxTextData> {
   return invoke<DocxTextData>("read_docx_text", { path });
+}
+
+export async function readCsvChunk(
+  path: string,
+  cursor: number | null,
+  maxRows: number,
+  delimiterHint: string | null
+): Promise<CsvChunkData> {
+  return invoke<CsvChunkData>("read_csv_chunk", {
+    path,
+    cursor,
+    maxRows,
+    delimiterHint
+  });
 }

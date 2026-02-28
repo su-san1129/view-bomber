@@ -6,7 +6,7 @@ import {
   readDirectoryTree,
   readFileContent
 } from "./tauri";
-import { isTextPreviewPath } from "../viewers/fileTypes";
+import { requiresRawTextContent } from "../viewers/fileTypes";
 
 export function useOpenFolder() {
   const state = useAppState();
@@ -47,7 +47,7 @@ export function useOpenFolder() {
         tasks.push(
           (async () => {
             try {
-              const content = isTextPreviewPath(selectedFilePath)
+              const content = requiresRawTextContent(selectedFilePath)
                 ? await readFileContent(selectedFilePath)
                 : "";
               dispatch({

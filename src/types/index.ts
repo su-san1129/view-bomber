@@ -35,3 +35,11 @@ export interface XlsxData {
 export interface DocxTextData {
   text: string;
 }
+
+export interface CsvChunkData {
+  delimiter: string;
+  header: string[];
+  rows: string[][];
+  next_cursor: number | null;
+  eof: boolean;
+}
