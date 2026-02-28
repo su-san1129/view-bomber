@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { Search, X } from "lucide-react";
-import { useAppState, useAppDispatch } from "../context/AppContext";
+import { useAppDispatch, useAppState } from "../context/AppContext";
 
 export function SearchBar() {
   const { searchQuery, caseSensitive, searchFileType, supportedFileTypes } = useAppState();
@@ -11,7 +11,7 @@ export function SearchBar() {
     <div
       style={{
         padding: "var(--sp-2) var(--sp-2)",
-        borderBottom: "1px solid var(--border-color)",
+        borderBottom: "1px solid var(--border-color)"
       }}
     >
       <div
@@ -22,14 +22,12 @@ export function SearchBar() {
           backgroundColor: "var(--bg-main)",
           borderRadius: "var(--radius-sm)",
           padding: "0 var(--sp-1)",
-          gap: "var(--sp-1)",
+          gap: "var(--sp-1)"
         }}
-        >
+      >
         <select
           value={searchFileType}
-          onChange={(e) =>
-            dispatch({ type: "SET_SEARCH_FILE_TYPE", payload: e.target.value })
-          }
+          onChange={(e) => dispatch({ type: "SET_SEARCH_FILE_TYPE", payload: e.target.value })}
           style={{
             height: 22,
             border: "none",
@@ -39,7 +37,7 @@ export function SearchBar() {
             fontSize: "var(--font-label)",
             fontFamily: "inherit",
             cursor: "pointer",
-            minWidth: 70,
+            minWidth: 70
           }}
           title="検索対象ファイル"
         >
@@ -58,9 +56,7 @@ export function SearchBar() {
           ref={inputRef}
           type="text"
           value={searchQuery}
-          onChange={(e) =>
-            dispatch({ type: "SET_SEARCH_QUERY", payload: e.target.value })
-          }
+          onChange={(e) => dispatch({ type: "SET_SEARCH_QUERY", payload: e.target.value })}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
               dispatch({ type: "CLEAR_SEARCH" });
@@ -76,7 +72,7 @@ export function SearchBar() {
             color: "var(--text-primary)",
             fontSize: "var(--font-ui)",
             fontFamily: "inherit",
-            minWidth: 0,
+            minWidth: 0
           }}
         />
         <button
@@ -103,7 +99,7 @@ export function SearchBar() {
             fontSize: "var(--font-label)",
             fontWeight: 600,
             flexShrink: 0,
-            padding: 0,
+            padding: 0
           }}
         >
           Aa
@@ -124,14 +120,10 @@ export function SearchBar() {
               color: "var(--text-secondary)",
               cursor: "pointer",
               flexShrink: 0,
-              padding: 0,
+              padding: 0
             }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.backgroundColor = "var(--bg-hover)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.backgroundColor = "transparent")
-            }
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--bg-hover)")}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
           >
             <X size={14} />
           </button>

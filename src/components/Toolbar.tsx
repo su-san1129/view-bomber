@@ -1,4 +1,4 @@
-import { FolderOpen, Sun, Moon } from "lucide-react";
+import { FolderOpen, Moon, Sun } from "lucide-react";
 import { useAppState } from "../context/AppContext";
 import { useOpenFolder } from "../lib/useOpenFolder";
 import { useTheme } from "../lib/useTheme";
@@ -22,7 +22,7 @@ export function Toolbar() {
         borderBottom: "1px solid var(--border-color)",
         userSelect: "none",
         flexShrink: 0,
-        fontSize: "var(--font-ui)",
+        fontSize: "var(--font-ui)"
       }}
     >
       <button
@@ -38,7 +38,7 @@ export function Toolbar() {
           cursor: "pointer",
           fontSize: "var(--font-ui)",
           backgroundColor: "var(--bg-hover)",
-          color: "var(--text-primary)",
+          color: "var(--text-primary)"
         }}
       >
         <FolderOpen size={14} />
@@ -62,10 +62,14 @@ export function Toolbar() {
           border: "none",
           cursor: "pointer",
           backgroundColor: "transparent",
-          color: "var(--text-secondary)",
+          color: "var(--text-secondary)"
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bg-hover)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = "var(--bg-hover)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = "transparent";
+        }}
         title={theme === "dark" ? "ライトモードに切り替え" : "ダークモードに切り替え"}
       >
         {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}

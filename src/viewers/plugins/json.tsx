@@ -1,9 +1,9 @@
-import { useState, type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { ViewerPlugin } from "../types";
 
 type JsonPrimitive = string | number | boolean | null;
-type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue; };
 
 interface JsonNode {
   path: string;
@@ -31,9 +31,7 @@ function toNode(value: JsonValue, path: string, key?: string): JsonNode {
       path,
       key,
       kind,
-      children: arrayValue.map((item, index) =>
-        toNode(item, `${path}[${index}]`, `[${index}]`),
-      ),
+      children: arrayValue.map((item, index) => toNode(item, `${path}[${index}]`, `[${index}]`))
     };
   }
 
@@ -43,8 +41,8 @@ function toNode(value: JsonValue, path: string, key?: string): JsonNode {
     key,
     kind,
     children: Object.keys(objectValue).map((childKey) =>
-      toNode(objectValue[childKey], `${path}.${childKey}`, childKey),
-    ),
+      toNode(objectValue[childKey], `${path}.${childKey}`, childKey)
+    )
   };
 }
 
@@ -71,7 +69,7 @@ function summaryForNode(node: JsonNode): string {
   return formatPrimitive(node.value ?? null);
 }
 
-function JsonTreeNode({ node, depth }: { node: JsonNode; depth: number }) {
+function JsonTreeNode({ node, depth }: { node: JsonNode; depth: number; }) {
   const hasChildren = (node.children?.length ?? 0) > 0;
   const initiallyExpanded = depth === 0;
   const [expanded, setExpanded] = useState(initiallyExpanded);
@@ -86,9 +84,7 @@ function JsonTreeNode({ node, depth }: { node: JsonNode; depth: number }) {
       </span>
     );
   } else {
-    valueElement = (
-      <span className="json-struct-summary">{summaryForNode(node)}</span>
-    );
+    valueElement = <span className="json-struct-summary">{summaryForNode(node)}</span>;
   }
 
   return (
@@ -97,18 +93,18 @@ function JsonTreeNode({ node, depth }: { node: JsonNode; depth: number }) {
         className="json-node-row"
         style={{ paddingLeft: `${depth * 18}px` }}
       >
-        {hasChildren ? (
-          <button
-            type="button"
-            className="json-toggle"
-            onClick={() => setExpanded((prev) => !prev)}
-            title={expanded ? "折りたたむ" : "展開する"}
-          >
-            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          </button>
-        ) : (
-          <span className="json-toggle-placeholder" />
-        )}
+        {hasChildren
+          ? (
+            <button
+              type="button"
+              className="json-toggle"
+              onClick={() => setExpanded((prev) => !prev)}
+              title={expanded ? "折りたたむ" : "展開する"}
+            >
+              {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </button>
+          )
+          : <span className="json-toggle-placeholder" />}
         <span className="json-key">{label}</span>
         <span className="json-separator">:</span>
         {valueElement}
@@ -124,7 +120,7 @@ function JsonTreeNode({ node, depth }: { node: JsonNode; depth: number }) {
   );
 }
 
-function JsonTreeViewer({ content }: { content: string }) {
+function JsonTreeViewer({ content }: { content: string; }) {
   const rootNode = toNode(JSON.parse(content) as JsonValue, "$");
   return <JsonTreeNode node={rootNode} depth={0} />;
 }
@@ -144,10 +140,12 @@ export const jsonViewerPlugin: ViewerPlugin = {
     } catch {
       return (
         <div ref={contentRef} style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <p style={{ marginBottom: "var(--sp-3)", color: "#f14c4c" }}>JSONの解析に失敗しました。生テキストを表示します。</p>
+          <p style={{ marginBottom: "var(--sp-3)", color: "#f14c4c" }}>
+            JSONの解析に失敗しました。生テキストを表示します。
+          </p>
           <pre className="plain-text-view">{content}</pre>
         </div>
       );
     }
-  },
+  }
 };

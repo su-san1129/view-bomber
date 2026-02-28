@@ -16,7 +16,7 @@ export function useOpenFolder() {
     try {
       const [tree, supportedTypes] = await Promise.all([
         readDirectoryTree(folderPath),
-        getSupportedFileTypes(),
+        getSupportedFileTypes()
       ]);
       dispatch({ type: "SET_SUPPORTED_FILE_TYPES", payload: supportedTypes });
       dispatch({ type: "SET_FILE_TREE", payload: tree });

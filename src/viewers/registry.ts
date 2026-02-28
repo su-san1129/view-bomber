@@ -28,6 +28,6 @@ export function resolveViewer(filePath: string): ViewerPlugin | null {
   if (!extension) return null;
 
   return viewerPlugins.find((plugin) =>
-    plugin.extensions.some((ext) => ext.toLowerCase() === extension),
+    plugin.extensions.some((ext) => ext.toLowerCase() === extension)
   ) ?? null;
 }

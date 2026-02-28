@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { watchImmediate } from "@tauri-apps/plugin-fs";
 import { FileText } from "lucide-react";
-import { useAppState, useAppDispatch } from "../context/AppContext";
+import { useAppDispatch, useAppState } from "../context/AppContext";
 import { readFileContent } from "../lib/tauri";
 import { EmptyState } from "./EmptyState";
 import { FindBar } from "./FindBar";
@@ -96,7 +96,7 @@ export function MarkdownViewer() {
           gap: "var(--sp-4)",
           backgroundColor: "var(--bg-main)",
           color: "var(--text-secondary)",
-          userSelect: "none",
+          userSelect: "none"
         }}
       >
         <FileText size={40} strokeWidth={1} />
@@ -115,7 +115,7 @@ export function MarkdownViewer() {
           height: "100%",
           backgroundColor: "var(--bg-main)",
           color: "var(--text-secondary)",
-          fontSize: "var(--font-ui)",
+          fontSize: "var(--font-ui)"
         }}
       >
         読み込み中...
@@ -133,7 +133,7 @@ export function MarkdownViewer() {
           height: "100%",
           backgroundColor: "var(--bg-main)",
           color: "#f14c4c",
-          fontSize: "var(--font-ui)",
+          fontSize: "var(--font-ui)"
         }}
       >
         {error}
@@ -145,7 +145,14 @@ export function MarkdownViewer() {
   const content = fileContent ?? "";
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", backgroundColor: "var(--bg-main)" }}>
+    <div
+      style={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        backgroundColor: "var(--bg-main)"
+      }}
+    >
       <div
         style={{
           display: "flex",
@@ -156,27 +163,35 @@ export function MarkdownViewer() {
           color: "var(--text-secondary)",
           borderBottom: "1px solid var(--border-color)",
           flexShrink: 0,
-          userSelect: "none",
+          userSelect: "none"
         }}
       >
         {fileName}
       </div>
       {findVisible && supportsFind && <FindBar contentRef={contentRef} onClose={closeFindBar} />}
-      <div style={{ flex: 1, overflowY: viewer?.id === "html" || viewer?.id === "pdf" ? "hidden" : "auto", padding: viewer?.id === "html" || viewer?.id === "pdf" ? 0 : "var(--sp-6) var(--sp-10)" }}>
-        {viewer ? (
-          viewer.render({
-            filePath: selectedFilePath,
-            content,
-            contentRef,
-          })
-        ) : (
-          <div ref={contentRef} style={{ maxWidth: 1200, margin: "0 auto" }}>
-            <p style={{ marginBottom: "var(--sp-3)", color: "var(--text-secondary)" }}>
-              この拡張子は未対応です。生テキストを表示します。
-            </p>
-            <pre className="plain-text-view">{content}</pre>
-          </div>
-        )}
+      <div
+        style={{
+          flex: 1,
+          overflowY: viewer?.id === "html" || viewer?.id === "pdf" ? "hidden" : "auto",
+          padding: viewer?.id === "html" || viewer?.id === "pdf" ? 0 : "var(--sp-6) var(--sp-10)"
+        }}
+      >
+        {viewer
+          ? (
+            viewer.render({
+              filePath: selectedFilePath,
+              content,
+              contentRef
+            })
+          )
+          : (
+            <div ref={contentRef} style={{ maxWidth: 1200, margin: "0 auto" }}>
+              <p style={{ marginBottom: "var(--sp-3)", color: "var(--text-secondary)" }}>
+                この拡張子は未対応です。生テキストを表示します。
+              </p>
+              <pre className="plain-text-view">{content}</pre>
+            </div>
+          )}
       </div>
     </div>
   );

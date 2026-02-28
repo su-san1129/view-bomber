@@ -9,7 +9,16 @@ export const imageViewerPlugin: ViewerPlugin = {
   render({ filePath }) {
     const src = convertFileSrc(filePath);
     return (
-      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--sp-6)" }}>
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "var(--sp-6)"
+        }}
+      >
         <img
           src={src}
           alt={filePath.split("/").pop() ?? "image"}
@@ -17,5 +26,5 @@ export const imageViewerPlugin: ViewerPlugin = {
         />
       </div>
     );
-  },
+  }
 };

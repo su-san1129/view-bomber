@@ -25,6 +25,21 @@ npm install
 npm run tauri dev
 ```
 
+## フォーマット
+
+```bash
+npm run format
+npm run format:check
+```
+
+## Lint
+
+```bash
+npm run lint:frontend # oxlint
+npm run lint:rust     # cargo clippy
+npm run lint          # 両方実行
+```
+
 ## 技術スタック
 
 - Tauri v2

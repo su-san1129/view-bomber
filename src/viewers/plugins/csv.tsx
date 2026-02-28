@@ -8,9 +8,9 @@ function splitCsvLine(line: string, delimiter: string): string[] {
   for (let i = 0; i < line.length; i += 1) {
     const char = line[i];
 
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
+    if (char === "\"") {
+      if (inQuotes && line[i + 1] === "\"") {
+        current += "\"";
         i += 1;
       } else {
         inQuotes = !inQuotes;
@@ -39,9 +39,9 @@ function parseCsv(text: string, delimiter: string): string[][] {
   for (let i = 0; i < text.length; i += 1) {
     const char = text[i];
 
-    if (char === '"') {
-      if (inQuotes && text[i + 1] === '"') {
-        currentLine += '""';
+    if (char === "\"") {
+      if (inQuotes && text[i + 1] === "\"") {
+        currentLine += "\"\"";
         i += 1;
       } else {
         inQuotes = !inQuotes;
@@ -140,7 +140,9 @@ export const csvViewerPlugin: ViewerPlugin = {
       if (parsed.length === 0) {
         return (
           <div ref={contentRef} style={{ maxWidth: 1200, margin: "0 auto" }}>
-            <p style={{ color: "var(--text-secondary)" }}>CSV/TSVに表示可能なデータがありません。</p>
+            <p style={{ color: "var(--text-secondary)" }}>
+              CSV/TSVに表示可能なデータがありません。
+            </p>
           </div>
         );
       }
@@ -151,7 +153,8 @@ export const csvViewerPlugin: ViewerPlugin = {
       return (
         <div ref={contentRef} style={{ maxWidth: 1400, margin: "0 auto" }}>
           <p className="csv-meta">
-            Delimiter: {delimiterLabel(delimiter)} / Rows: {normalized.length} / Columns: {header.length}
+            Delimiter: {delimiterLabel(delimiter)} / Rows: {normalized.length} / Columns:{" "}
+            {header.length}
           </p>
           <div className="csv-table-wrap">
             <table className="csv-table">
@@ -165,9 +168,7 @@ export const csvViewerPlugin: ViewerPlugin = {
               <tbody>
                 {body.map((row, rowIndex) => (
                   <tr key={`r-${rowIndex}`}>
-                    {row.map((cell, colIndex) => (
-                      <td key={`c-${rowIndex}-${colIndex}`}>{cell}</td>
-                    ))}
+                    {row.map((cell, colIndex) => <td key={`c-${rowIndex}-${colIndex}`}>{cell}</td>)}
                   </tr>
                 ))}
               </tbody>
@@ -178,10 +179,12 @@ export const csvViewerPlugin: ViewerPlugin = {
     } catch {
       return (
         <div ref={contentRef} style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <p style={{ marginBottom: "var(--sp-3)", color: "#f14c4c" }}>CSVの解析に失敗しました。生テキストを表示します。</p>
+          <p style={{ marginBottom: "var(--sp-3)", color: "#f14c4c" }}>
+            CSVの解析に失敗しました。生テキストを表示します。
+          </p>
           <pre className="plain-text-view">{content}</pre>
         </div>
       );
     }
-  },
+  }
 };

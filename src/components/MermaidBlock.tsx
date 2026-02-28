@@ -7,7 +7,7 @@ function getCurrentTheme(): "dark" | "default" {
   return document.documentElement.getAttribute("data-theme") === "light" ? "default" : "dark";
 }
 
-export function MermaidBlock({ children }: { children: string }) {
+export function MermaidBlock({ children }: { children: string; }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,17 +41,32 @@ export function MermaidBlock({ children }: { children: string }) {
         containerRef.current!.innerHTML = svg;
       }).catch(() => {});
     });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"]
+    });
     return () => observer.disconnect();
   }, [children]);
 
   if (error) {
     return (
-      <pre style={{ color: "#f14c4c", border: "1px solid var(--border-color)", borderRadius: 6, padding: 16 }}>
+      <pre
+        style={{
+          color: "#f14c4c",
+          border: "1px solid var(--border-color)",
+          borderRadius: 6,
+          padding: 16
+        }}
+      >
         <code>{children}</code>
       </pre>
     );
   }
 
-  return <div ref={containerRef} style={{ display: "flex", justifyContent: "center", margin: "16px 0" }} />;
+  return (
+    <div
+      ref={containerRef}
+      style={{ display: "flex", justifyContent: "center", margin: "16px 0" }}
+    />
+  );
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, type ReactNode, type Dispatch } from "react";
+import { createContext, type Dispatch, type ReactNode, useContext, useReducer } from "react";
 import type { FileEntry, SearchFileResult, SupportedFileType } from "../types";
 
 interface AppState {
@@ -17,20 +17,20 @@ interface AppState {
 }
 
 type AppAction =
-  | { type: "SET_ROOT_PATH"; payload: string }
-  | { type: "SET_FILE_TREE"; payload: FileEntry[] }
-  | { type: "SET_SELECTED_FILE"; payload: string }
-  | { type: "SET_FILE_CONTENT"; payload: string }
-  | { type: "SET_LOADING"; payload: boolean }
-  | { type: "SET_ERROR"; payload: string | null }
-  | { type: "RESET" }
-  | { type: "SET_SEARCH_QUERY"; payload: string }
-  | { type: "SET_SEARCH_RESULTS"; payload: SearchFileResult[] }
-  | { type: "SET_SEARCH_LOADING"; payload: boolean }
-  | { type: "TOGGLE_CASE_SENSITIVE" }
-  | { type: "SET_SEARCH_FILE_TYPE"; payload: string }
-  | { type: "SET_SUPPORTED_FILE_TYPES"; payload: SupportedFileType[] }
-  | { type: "CLEAR_SEARCH" };
+  | { type: "SET_ROOT_PATH"; payload: string; }
+  | { type: "SET_FILE_TREE"; payload: FileEntry[]; }
+  | { type: "SET_SELECTED_FILE"; payload: string; }
+  | { type: "SET_FILE_CONTENT"; payload: string; }
+  | { type: "SET_LOADING"; payload: boolean; }
+  | { type: "SET_ERROR"; payload: string | null; }
+  | { type: "RESET"; }
+  | { type: "SET_SEARCH_QUERY"; payload: string; }
+  | { type: "SET_SEARCH_RESULTS"; payload: SearchFileResult[]; }
+  | { type: "SET_SEARCH_LOADING"; payload: boolean; }
+  | { type: "TOGGLE_CASE_SENSITIVE"; }
+  | { type: "SET_SEARCH_FILE_TYPE"; payload: string; }
+  | { type: "SET_SUPPORTED_FILE_TYPES"; payload: SupportedFileType[]; }
+  | { type: "CLEAR_SEARCH"; };
 
 const initialState: AppState = {
   rootPath: null,
@@ -49,15 +49,30 @@ const initialState: AppState = {
     { id: "html", label: "HTML", extensions: ["html", "htm"], searchable: true },
     { id: "json", label: "JSON", extensions: ["json"], searchable: true },
     { id: "csv", label: "CSV", extensions: ["csv", "tsv"], searchable: true },
-    { id: "image", label: "Image", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"], searchable: false },
-    { id: "pdf", label: "PDF", extensions: ["pdf"], searchable: false },
-  ],
+    {
+      id: "image",
+      label: "Image",
+      extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"],
+      searchable: false
+    },
+    { id: "pdf", label: "PDF", extensions: ["pdf"], searchable: false }
+  ]
 };
 
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case "SET_ROOT_PATH":
-      return { ...state, rootPath: action.payload, selectedFilePath: null, fileContent: null, error: null, searchQuery: "", searchResults: [], searchLoading: false, searchFileType: "all" };
+      return {
+        ...state,
+        rootPath: action.payload,
+        selectedFilePath: null,
+        fileContent: null,
+        error: null,
+        searchQuery: "",
+        searchResults: [],
+        searchLoading: false,
+        searchFileType: "all"
+      };
     case "SET_FILE_TREE":
       return { ...state, fileTree: action.payload, loading: false };
     case "SET_SELECTED_FILE":
@@ -92,7 +107,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
 const AppContext = createContext<AppState>(initialState);
 const AppDispatchContext = createContext<Dispatch<AppAction>>(() => {});
 
-export function AppProvider({ children }: { children: ReactNode }) {
+export function AppProvider({ children }: { children: ReactNode; }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
   return (
     <AppContext.Provider value={state}>

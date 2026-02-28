@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronUp, ChevronDown, X } from "lucide-react";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { useFindInFile } from "../lib/useFindInFile";
 
 interface FindBarProps {
@@ -12,7 +12,7 @@ export function FindBar({ contentRef, onClose }: FindBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { matchCount, currentIndex, next, prev, clear } = useFindInFile(
     contentRef,
-    query,
+    query
   );
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export function FindBar({ contentRef, onClose }: FindBarProps) {
         backgroundColor: "var(--bg-toolbar)",
         borderBottom: "1px solid var(--border-color)",
         flexShrink: 0,
-        userSelect: "none",
+        userSelect: "none"
       }}
     >
       <input
@@ -67,7 +67,7 @@ export function FindBar({ contentRef, onClose }: FindBarProps) {
           backgroundColor: "var(--bg-main)",
           border: "1px solid var(--border-color)",
           borderRadius: "var(--radius-sm)",
-          outline: "none",
+          outline: "none"
         }}
       />
       <span
@@ -75,7 +75,7 @@ export function FindBar({ contentRef, onClose }: FindBarProps) {
           fontSize: "var(--font-label)",
           color: "var(--text-secondary)",
           minWidth: 48,
-          textAlign: "center",
+          textAlign: "center"
         }}
       >
         {query
@@ -107,5 +107,5 @@ const btnStyle: React.CSSProperties = {
   border: "none",
   borderRadius: "var(--radius-sm)",
   color: "var(--text-secondary)",
-  cursor: "pointer",
+  cursor: "pointer"
 };

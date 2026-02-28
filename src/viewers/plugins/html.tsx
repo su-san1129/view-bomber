@@ -5,7 +5,9 @@ import { readFileContent } from "../../lib/tauri";
 import type { ViewerPlugin } from "../types";
 
 function isViteDevEntrypoint(content: string): boolean {
-  return /<script[^>]+type=["']module["'][^>]+src=["']\/src\/[^"']+\.(ts|tsx|js|jsx)["']/i.test(content);
+  return /<script[^>]+type=["']module["'][^>]+src=["']\/src\/[^"']+\.(ts|tsx|js|jsx)["']/i.test(
+    content
+  );
 }
 
 function getDistIndexPath(filePath: string): string {
@@ -24,14 +26,17 @@ function transformHtmlForPreview(content: string, filePath: string): string {
     html = html.replace(/<head(\s[^>]*)?>/i, (headTag) => `${headTag}<base href="${baseHref}" />`);
   }
 
-  html = html.replace(/\b(src|href)=["']\/(?!\/)([^"']+)["']/gi, (_all, attr: string, path: string) => {
-    return `${attr}="./${path}"`;
-  });
+  html = html.replace(
+    /\b(src|href)=["']\/(?!\/)([^"']+)["']/gi,
+    (_all, attr: string, path: string) => {
+      return `${attr}="./${path}"`;
+    }
+  );
 
   return html;
 }
 
-function HtmlPreview({ filePath, content }: { filePath: string; content: string }) {
+function HtmlPreview({ filePath, content }: { filePath: string; content: string; }) {
   const [previewHtml, setPreviewHtml] = useState(() => transformHtmlForPreview(content, filePath));
   const [usingDistFallback, setUsingDistFallback] = useState(false);
 
@@ -71,7 +76,13 @@ function HtmlPreview({ filePath, content }: { filePath: string; content: string 
   return (
     <>
       {usingDistFallback && (
-        <p style={{ padding: "var(--sp-2) var(--sp-4)", color: "var(--text-secondary)", fontSize: "var(--font-ui)" }}>
+        <p
+          style={{
+            padding: "var(--sp-2) var(--sp-4)",
+            color: "var(--text-secondary)",
+            fontSize: "var(--font-ui)"
+          }}
+        >
           Vite開発用のindex.htmlを検出したため、dist/index.htmlを表示しています。
         </p>
       )}
@@ -83,7 +94,7 @@ function HtmlPreview({ filePath, content }: { filePath: string; content: string 
           width: "100%",
           height: "100%",
           border: "none",
-          backgroundColor: "white",
+          backgroundColor: "white"
         }}
       />
     </>
@@ -97,5 +108,5 @@ export const htmlViewerPlugin: ViewerPlugin = {
   supportsFind: false,
   render({ filePath, content }) {
     return <HtmlPreview filePath={filePath} content={content} />;
-  },
+  }
 };

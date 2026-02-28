@@ -19,13 +19,13 @@ export async function searchFiles(
   rootPath: string,
   query: string,
   caseSensitive: boolean,
-  fileTypeFilter: string,
+  fileTypeFilter: string
 ): Promise<SearchFileResult[]> {
   return invoke<SearchFileResult[]>("search_files", {
     rootPath,
     query,
     caseSensitive,
-    fileTypeFilter,
+    fileTypeFilter
   });
 }
 

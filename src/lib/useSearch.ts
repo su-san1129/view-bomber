@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useAppState, useAppDispatch } from "../context/AppContext";
+import { useAppDispatch, useAppState } from "../context/AppContext";
 import { searchFiles } from "./tauri";
 
 export function useSearch() {

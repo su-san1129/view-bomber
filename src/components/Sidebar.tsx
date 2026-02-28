@@ -17,14 +17,12 @@ export function Sidebar() {
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        backgroundColor: "var(--bg-sidebar)",
+        backgroundColor: "var(--bg-sidebar)"
       }}
     >
       {rootPath && <SearchBar />}
       <div style={{ flex: 1, overflowY: "auto" }}>
-        {hasSearch ? (
-          <SearchResults />
-        ) : (
+        {hasSearch ? <SearchResults /> : (
           <>
             {rootPath && (
               <div
@@ -38,36 +36,36 @@ export function Sidebar() {
                   textTransform: "uppercase",
                   letterSpacing: "0.08em",
                   color: "var(--text-secondary)",
-                  userSelect: "none",
+                  userSelect: "none"
                 }}
               >
                 エクスプローラー
               </div>
             )}
-            {fileTree.length > 0 ? (
-              <FileTree entries={fileTree} depth={0} />
-            ) : rootPath ? (
-              <div
-                style={{
-                  padding: "var(--sp-2) var(--sp-5)",
-                  fontSize: "var(--font-ui)",
-                  color: "var(--text-secondary)",
-                }}
-              >
-                対応ファイルが見つかりません
-              </div>
-            ) : (
-              <div
-                style={{
-                  padding: "var(--sp-8) var(--sp-5)",
-                  fontSize: "var(--font-ui)",
-                  color: "var(--text-secondary)",
-                  textAlign: "center",
-                }}
-              >
-                フォルダを開いて対応ファイルを閲覧
-              </div>
-            )}
+            {fileTree.length > 0 ? <FileTree entries={fileTree} depth={0} /> : rootPath
+              ? (
+                <div
+                  style={{
+                    padding: "var(--sp-2) var(--sp-5)",
+                    fontSize: "var(--font-ui)",
+                    color: "var(--text-secondary)"
+                  }}
+                >
+                  対応ファイルが見つかりません
+                </div>
+              )
+              : (
+                <div
+                  style={{
+                    padding: "var(--sp-8) var(--sp-5)",
+                    fontSize: "var(--font-ui)",
+                    color: "var(--text-secondary)",
+                    textAlign: "center"
+                  }}
+                >
+                  フォルダを開いて対応ファイルを閲覧
+                </div>
+              )}
           </>
         )}
       </div>

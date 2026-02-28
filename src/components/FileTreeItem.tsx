@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Folder, FileText } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, Folder } from "lucide-react";
 import type { FileEntry } from "../types";
-import { useAppState, useAppDispatch } from "../context/AppContext";
+import { useAppDispatch, useAppState } from "../context/AppContext";
 import { readFileContent } from "../lib/tauri";
 import { isTextPreviewPath } from "../viewers/fileTypes";
 import { FileTree } from "./FileTree";
@@ -49,7 +49,7 @@ export function FileTreeItem({ entry, depth }: FileTreeItemProps) {
           userSelect: "none",
           fontSize: "var(--font-ui)",
           backgroundColor: isSelected ? "var(--bg-selected)" : "transparent",
-          color: "var(--text-primary)",
+          color: "var(--text-primary)"
         }}
         onClick={handleClick}
         onMouseEnter={(e) => {
@@ -59,21 +59,31 @@ export function FileTreeItem({ entry, depth }: FileTreeItemProps) {
           if (!isSelected) e.currentTarget.style.backgroundColor = "transparent";
         }}
       >
-        {entry.is_dir ? (
-          <>
-            {expanded ? (
-              <ChevronDown size={16} style={{ flexShrink: 0, marginRight: 2, color: "var(--text-secondary)" }} />
-            ) : (
-              <ChevronRight size={16} style={{ flexShrink: 0, marginRight: 2, color: "var(--text-secondary)" }} />
-            )}
-            <Folder size={16} style={{ flexShrink: 0, marginRight: 6, color: "#dcb67a" }} />
-          </>
-        ) : (
-          <>
-            <span style={{ width: 16, flexShrink: 0, marginRight: 2 }} />
-            <FileText size={16} style={{ flexShrink: 0, marginRight: 6, color: "#519aba" }} />
-          </>
-        )}
+        {entry.is_dir
+          ? (
+            <>
+              {expanded
+                ? (
+                  <ChevronDown
+                    size={16}
+                    style={{ flexShrink: 0, marginRight: 2, color: "var(--text-secondary)" }}
+                  />
+                )
+                : (
+                  <ChevronRight
+                    size={16}
+                    style={{ flexShrink: 0, marginRight: 2, color: "var(--text-secondary)" }}
+                  />
+                )}
+              <Folder size={16} style={{ flexShrink: 0, marginRight: 6, color: "#dcb67a" }} />
+            </>
+          )
+          : (
+            <>
+              <span style={{ width: 16, flexShrink: 0, marginRight: 2 }} />
+              <FileText size={16} style={{ flexShrink: 0, marginRight: 6, color: "#519aba" }} />
+            </>
+          )}
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {entry.name}
         </span>

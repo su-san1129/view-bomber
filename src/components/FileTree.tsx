@@ -9,9 +9,7 @@ interface FileTreeProps {
 export function FileTree({ entries, depth }: FileTreeProps) {
   return (
     <div>
-      {entries.map((entry) => (
-        <FileTreeItem key={entry.path} entry={entry} depth={depth} />
-      ))}
+      {entries.map((entry) => <FileTreeItem key={entry.path} entry={entry} depth={depth} />)}
     </div>
   );
 }

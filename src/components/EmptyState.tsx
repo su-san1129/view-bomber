@@ -1,4 +1,4 @@
-import { FolderOpen, Clock } from "lucide-react";
+import { Clock, FolderOpen } from "lucide-react";
 import { getRecentFolders } from "../lib/recentFiles";
 import { useOpenFolder } from "../lib/useOpenFolder";
 
@@ -20,21 +20,41 @@ export function EmptyState() {
         justifyContent: "center",
         height: "100%",
         backgroundColor: "var(--bg-main)",
-        userSelect: "none",
+        userSelect: "none"
       }}
     >
       <div style={{ maxWidth: 420, width: "100%" }}>
         {/* Title */}
-        <h1 style={{ fontSize: "var(--font-welcome)", fontWeight: 300, color: "var(--welcome-title)", marginBottom: 4 }}>
+        <h1
+          style={{
+            fontSize: "var(--font-welcome)",
+            fontWeight: 300,
+            color: "var(--welcome-title)",
+            marginBottom: 4
+          }}
+        >
           View Bomber
         </h1>
-        <p style={{ fontSize: "var(--font-ui)", color: "var(--text-secondary)", marginBottom: "var(--sp-8)" }}>
+        <p
+          style={{
+            fontSize: "var(--font-ui)",
+            color: "var(--text-secondary)",
+            marginBottom: "var(--sp-8)"
+          }}
+        >
           ローカルフォルダの対応ファイルを快適に閲覧
         </p>
 
         {/* Start */}
         <div style={{ marginBottom: "var(--sp-6)" }}>
-          <h2 style={{ fontSize: "var(--font-ui)", fontWeight: 600, color: "var(--welcome-heading)", marginBottom: "var(--sp-3)" }}>
+          <h2
+            style={{
+              fontSize: "var(--font-ui)",
+              fontWeight: 600,
+              color: "var(--welcome-heading)",
+              marginBottom: "var(--sp-3)"
+            }}
+          >
             はじめる
           </h2>
           <button
@@ -50,10 +70,14 @@ export function EmptyState() {
               cursor: "pointer",
               backgroundColor: "transparent",
               color: "var(--md-link)",
-              fontSize: "var(--font-ui)",
+              fontSize: "var(--font-ui)"
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bg-hover)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "var(--bg-hover)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+            }}
           >
             <FolderOpen size={16} />
             フォルダを開く...
@@ -71,7 +95,7 @@ export function EmptyState() {
                 fontSize: "var(--font-ui)",
                 fontWeight: 600,
                 color: "var(--welcome-heading)",
-                marginBottom: "var(--sp-3)",
+                marginBottom: "var(--sp-3)"
               }}
             >
               <Clock size={14} />
@@ -94,10 +118,14 @@ export function EmptyState() {
                       cursor: "pointer",
                       backgroundColor: "transparent",
                       fontSize: "var(--font-ui)",
-                      textAlign: "left",
+                      textAlign: "left"
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bg-hover)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "var(--bg-hover)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
+                    }}
                   >
                     <span style={{ color: "var(--md-link)" }}>{folder.name}</span>
                     <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-label)" }}>

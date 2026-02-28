@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { openPath } from "@tauri-apps/plugin-opener";
-import { ExternalLink, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Maximize } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Maximize, ZoomIn, ZoomOut } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import type { ViewerPlugin } from "../types";
@@ -12,7 +12,7 @@ function clampScale(scale: number): number {
   return Math.max(0.25, Math.min(4, scale));
 }
 
-function PdfViewer({ filePath }: { filePath: string }) {
+function PdfViewer({ filePath }: { filePath: string; }) {
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [numPages, setNumPages] = useState(0);
@@ -91,7 +91,7 @@ function PdfViewer({ filePath }: { filePath: string }) {
         await page.render({
           canvas,
           canvasContext: context,
-          viewport,
+          viewport
         }).promise;
       } catch (err) {
         if (!cancelled) {
@@ -210,5 +210,5 @@ export const pdfViewerPlugin: ViewerPlugin = {
   supportsFind: false,
   render({ filePath }) {
     return <PdfViewer filePath={filePath} />;
-  },
+  }
 };

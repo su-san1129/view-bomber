@@ -5,10 +5,10 @@ import { AppProvider } from "./context/AppContext";
 import "./App.css";
 
 // WebKit/WebView compatibility for pdf.js URL helpers.
-if (typeof (URL as { parse?: unknown }).parse !== "function") {
-  (URL as typeof URL & { parse: (input: string, base?: string | URL) => URL | null }).parse = (
+if (typeof (URL as { parse?: unknown; }).parse !== "function") {
+  (URL as typeof URL & { parse: (input: string, base?: string | URL) => URL | null; }).parse = (
     input,
-    base,
+    base
   ) => {
     try {
       return new URL(input, base);
@@ -18,10 +18,10 @@ if (typeof (URL as { parse?: unknown }).parse !== "function") {
   };
 }
 
-if (typeof (URL as { canParse?: unknown }).canParse !== "function") {
-  (URL as typeof URL & { canParse: (input: string, base?: string | URL) => boolean }).canParse = (
+if (typeof (URL as { canParse?: unknown; }).canParse !== "function") {
+  (URL as typeof URL & { canParse: (input: string, base?: string | URL) => boolean; }).canParse = (
     input,
-    base,
+    base
   ) => {
     try {
       // eslint-disable-next-line no-new
@@ -33,7 +33,7 @@ if (typeof (URL as { canParse?: unknown }).canParse !== "function") {
   };
 }
 
-if (typeof (Promise as { try?: unknown }).try !== "function") {
+if (typeof (Promise as { try?: unknown; }).try !== "function") {
   (
     Promise as typeof Promise & {
       try: <T>(fn: () => T | PromiseLike<T>) => Promise<T>;
@@ -41,7 +41,7 @@ if (typeof (Promise as { try?: unknown }).try !== "function") {
   ).try = (fn) => Promise.resolve().then(fn);
 }
 
-if (typeof (Promise as { withResolvers?: unknown }).withResolvers !== "function") {
+if (typeof (Promise as { withResolvers?: unknown; }).withResolvers !== "function") {
   (
     Promise as typeof Promise & {
       withResolvers: () => {
@@ -66,5 +66,5 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <AppProvider>
       <App />
     </AppProvider>
-  </React.StrictMode>,
+  </React.StrictMode>
 );

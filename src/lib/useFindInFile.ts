@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface FindResult {
   matchCount: number;
@@ -10,7 +10,7 @@ interface FindResult {
 
 export function useFindInFile(
   containerRef: React.RefObject<HTMLDivElement | null>,
-  query: string,
+  query: string
 ): FindResult {
   const [matchCount, setMatchCount] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -44,10 +44,10 @@ export function useFindInFile(
       const walker = document.createTreeWalker(
         container,
         NodeFilter.SHOW_TEXT,
-        null,
+        null
       );
 
-      const matches: { node: Text; index: number }[] = [];
+      const matches: { node: Text; index: number; }[] = [];
       let textNode: Text | null;
       while ((textNode = walker.nextNode() as Text | null)) {
         const value = textNode.nodeValue ?? "";
@@ -62,7 +62,7 @@ export function useFindInFile(
 
       // Wrap matches in <mark> – process in reverse to keep node offsets valid
       const created: HTMLElement[] = [];
-      const processed = new Map<Text, { node: Text; splits: { index: number }[] }>();
+      const processed = new Map<Text, { node: Text; splits: { index: number; }[]; }>();
 
       for (const m of matches) {
         const entry = processed.get(m.node);
@@ -101,7 +101,7 @@ export function useFindInFile(
         setCurrentIndex(0);
       }
     },
-    [containerRef, clearMarks],
+    [containerRef, clearMarks]
   );
 
   useEffect(() => {
@@ -121,7 +121,7 @@ export function useFindInFile(
       marks[wrapped].classList.add("find-highlight-current");
       marks[wrapped].scrollIntoView({ block: "center", behavior: "smooth" });
     },
-    [],
+    []
   );
 
   const next = useCallback(() => {

@@ -12,7 +12,7 @@ const markdownComponents: Components = {
       return <MermaidBlock>{String(children).replace(/\n$/, "")}</MermaidBlock>;
     }
     return <code className={className} {...props}>{children}</code>;
-  },
+  }
 };
 
 export const markdownViewerPlugin: ViewerPlugin = {
@@ -32,5 +32,5 @@ export const markdownViewerPlugin: ViewerPlugin = {
         </ReactMarkdown>
       </div>
     );
-  },
+  }
 };

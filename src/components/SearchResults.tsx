@@ -1,7 +1,7 @@
-import { useState, type ReactNode } from "react";
-import { ChevronRight, ChevronDown, FileText } from "lucide-react";
+import { type ReactNode, useState } from "react";
+import { ChevronDown, ChevronRight, FileText } from "lucide-react";
 import type { SearchFileResult } from "../types";
-import { useAppState, useAppDispatch } from "../context/AppContext";
+import { useAppDispatch, useAppState } from "../context/AppContext";
 import { readFileContent } from "../lib/tauri";
 import { isTextPreviewPath } from "../viewers/fileTypes";
 
@@ -23,7 +23,7 @@ function highlightMatch(text: string, query: string, caseSensitive: boolean): Re
           key={i}
           style={{
             backgroundColor: "var(--bg-selected)",
-            borderRadius: 2,
+            borderRadius: 2
           }}
         >
           {part}
@@ -34,7 +34,7 @@ function highlightMatch(text: string, query: string, caseSensitive: boolean): Re
   });
 }
 
-function SearchFileGroup({ result }: { result: SearchFileResult }) {
+function SearchFileGroup({ result }: { result: SearchFileResult; }) {
   const [expanded, setExpanded] = useState(true);
   const { searchQuery, caseSensitive, selectedFilePath } = useAppState();
   const dispatch = useAppDispatch();
@@ -66,7 +66,7 @@ function SearchFileGroup({ result }: { result: SearchFileResult }) {
           userSelect: "none",
           fontSize: "var(--font-ui)",
           color: "var(--text-primary)",
-          backgroundColor: isFileSelected ? "var(--bg-selected)" : "transparent",
+          backgroundColor: isFileSelected ? "var(--bg-selected)" : "transparent"
         }}
         onClick={() => setExpanded(!expanded)}
         onMouseEnter={(e) => {
@@ -76,13 +76,23 @@ function SearchFileGroup({ result }: { result: SearchFileResult }) {
           if (!isFileSelected) e.currentTarget.style.backgroundColor = "transparent";
         }}
       >
-        {expanded ? (
-          <ChevronDown size={16} style={{ flexShrink: 0, marginRight: 2, color: "var(--text-secondary)" }} />
-        ) : (
-          <ChevronRight size={16} style={{ flexShrink: 0, marginRight: 2, color: "var(--text-secondary)" }} />
-        )}
+        {expanded
+          ? (
+            <ChevronDown
+              size={16}
+              style={{ flexShrink: 0, marginRight: 2, color: "var(--text-secondary)" }}
+            />
+          )
+          : (
+            <ChevronRight
+              size={16}
+              style={{ flexShrink: 0, marginRight: 2, color: "var(--text-secondary)" }}
+            />
+          )}
         <FileText size={16} style={{ flexShrink: 0, marginRight: 6, color: "#519aba" }} />
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+        <span
+          style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}
+        >
           {result.file_name}
         </span>
         <span
@@ -94,14 +104,14 @@ function SearchFileGroup({ result }: { result: SearchFileResult }) {
             backgroundColor: "var(--bg-hover)",
             borderRadius: "var(--radius-sm)",
             padding: "0 5px",
-            lineHeight: "18px",
+            lineHeight: "18px"
           }}
         >
           {result.matches.length}
         </span>
       </div>
-      {expanded &&
-        result.matches.map((match) => (
+      {expanded
+        && result.matches.map((match) => (
           <div
             key={`${result.file_path}:${match.line_number}`}
             style={{
@@ -113,21 +123,17 @@ function SearchFileGroup({ result }: { result: SearchFileResult }) {
               cursor: "pointer",
               userSelect: "none",
               fontSize: "var(--font-ui)",
-              color: "var(--text-primary)",
+              color: "var(--text-primary)"
             }}
             onClick={() => handleMatchClick(result.file_path)}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.backgroundColor = "var(--bg-hover)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.backgroundColor = "transparent")
-            }
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--bg-hover)")}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
           >
             <span
               style={{
                 overflow: "hidden",
                 textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                whiteSpace: "nowrap"
               }}
             >
               {highlightMatch(match.line_text, searchQuery, caseSensitive)}
@@ -147,7 +153,7 @@ export function SearchResults() {
         style={{
           padding: "var(--sp-2) var(--sp-5)",
           fontSize: "var(--font-ui)",
-          color: "var(--text-secondary)",
+          color: "var(--text-secondary)"
         }}
       >
         検索中...
@@ -161,7 +167,7 @@ export function SearchResults() {
         style={{
           padding: "var(--sp-2) var(--sp-5)",
           fontSize: "var(--font-ui)",
-          color: "var(--text-secondary)",
+          color: "var(--text-secondary)"
         }}
       >
         結果が見つかりません
@@ -181,14 +187,12 @@ export function SearchResults() {
           padding: "0 var(--sp-5)",
           fontSize: "var(--font-label)",
           color: "var(--text-secondary)",
-          userSelect: "none",
+          userSelect: "none"
         }}
       >
         {searchResults.length}件のファイル、{totalMatches}件の一致
       </div>
-      {searchResults.map((result) => (
-        <SearchFileGroup key={result.file_path} result={result} />
-      ))}
+      {searchResults.map((result) => <SearchFileGroup key={result.file_path} result={result} />)}
     </div>
   );
 }
