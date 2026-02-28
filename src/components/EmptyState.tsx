@@ -1,10 +1,17 @@
 import { Clock, FolderOpen } from "lucide-react";
-import { getRecentFolders } from "../lib/recentFiles";
+import { useAppState } from "../context/AppContext";
 import { useOpenFolder } from "../lib/useOpenFolder";
 
 export function EmptyState() {
-  const recentFolders = getRecentFolders();
+  const { workspaceOrder, workspaces } = useAppState();
   const openFolder = useOpenFolder();
+  const recentFolders = workspaceOrder
+    .map((workspaceId) => workspaces[workspaceId])
+    .filter((workspace) => !!workspace)
+    .map((workspace) => ({
+      path: workspace.path,
+      name: workspace.name
+    }));
 
   const shortenPath = (path: string) => {
     const home = path.match(/^\/Users\/[^/]+/)?.[0];

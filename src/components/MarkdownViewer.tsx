@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { watchImmediate } from "@tauri-apps/plugin-fs";
 import { FileText } from "lucide-react";
-import { useAppDispatch, useAppState } from "../context/AppContext";
+import { useActiveWorkspace, useAppDispatch, useAppState } from "../context/AppContext";
 import { readFileContent } from "../lib/tauri";
 import { EmptyState } from "./EmptyState";
 import { FindBar } from "./FindBar";
@@ -9,12 +9,17 @@ import { isTextPreviewPath } from "../viewers/fileTypes";
 import { resolveViewer } from "../viewers/registry";
 
 export function MarkdownViewer() {
-  const { rootPath, selectedFilePath, fileContent, loading, error } = useAppState();
+  const { activeWorkspaceId } = useAppState();
+  const activeWorkspace = useActiveWorkspace();
   const dispatch = useAppDispatch();
   const unwatchRef = useRef<(() => void) | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [findVisible, setFindVisible] = useState(false);
 
+  const selectedFilePath = activeWorkspace?.selectedFilePath ?? null;
+  const fileContent = activeWorkspace?.fileContent ?? null;
+  const loading = activeWorkspace?.loading ?? false;
+  const error = activeWorkspace?.error ?? null;
   const closeFindBar = useCallback(() => setFindVisible(false), []);
   const viewer = selectedFilePath ? resolveViewer(selectedFilePath) : null;
   const supportsFind = viewer?.supportsFind ?? true;
@@ -39,7 +44,11 @@ export function MarkdownViewer() {
               const content = isTextPreviewPath(selectedFilePath)
                 ? await readFileContent(selectedFilePath)
                 : "";
-              dispatch({ type: "SET_FILE_CONTENT", payload: content });
+              if (!activeWorkspaceId) return;
+              dispatch({
+                type: "SET_WORKSPACE_FILE_CONTENT",
+                payload: { workspaceId: activeWorkspaceId, content }
+              });
             } catch {
               // File may have been deleted
             }
@@ -60,7 +69,7 @@ export function MarkdownViewer() {
         unwatchRef.current = null;
       }
     };
-  }, [selectedFilePath, dispatch]);
+  }, [selectedFilePath, dispatch, activeWorkspaceId]);
 
   // Cmd+F -> open find bar when viewer supports in-file find
   useEffect(() => {
@@ -80,7 +89,7 @@ export function MarkdownViewer() {
     setFindVisible(false);
   }, [selectedFilePath, supportsFind]);
 
-  if (!selectedFilePath && !rootPath) {
+  if (!activeWorkspaceId) {
     return <EmptyState />;
   }
 

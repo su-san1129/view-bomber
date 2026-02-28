@@ -1,29 +1,86 @@
-import { useAppDispatch } from "../context/AppContext";
-import { getSupportedFileTypes, openFolderDialog, readDirectoryTree } from "./tauri";
-import { addRecentFolder } from "./recentFiles";
+import { useCallback } from "react";
+import { useAppDispatch, useAppState } from "../context/AppContext";
+import {
+  getSupportedFileTypes,
+  openFolderDialog,
+  readDirectoryTree,
+  readFileContent
+} from "./tauri";
+import { isTextPreviewPath } from "../viewers/fileTypes";
 
 export function useOpenFolder() {
+  const state = useAppState();
   const dispatch = useAppDispatch();
 
-  const openFolder = async (path?: string) => {
+  const openFolder = useCallback(async (path?: string) => {
     const folderPath = path ?? (await openFolderDialog());
     if (!folderPath) return;
 
-    dispatch({ type: "SET_ROOT_PATH", payload: folderPath });
-    dispatch({ type: "SET_LOADING", payload: true });
-    addRecentFolder(folderPath);
+    dispatch({ type: "ACTIVATE_WORKSPACE", payload: folderPath });
+    const workspace = state.workspaces[folderPath];
+    const shouldLoadTree = !workspace?.treeLoaded;
+    const shouldLoadSelectedFile = !!workspace?.selectedFilePath && workspace.fileContent === null;
 
     try {
-      const [tree, supportedTypes] = await Promise.all([
-        readDirectoryTree(folderPath),
-        getSupportedFileTypes()
-      ]);
+      if (shouldLoadTree) {
+        dispatch({
+          type: "SET_WORKSPACE_LOADING",
+          payload: { workspaceId: folderPath, loading: true }
+        });
+      }
+
+      const tasks: Promise<void>[] = [];
+
+      if (shouldLoadTree) {
+        tasks.push(
+          readDirectoryTree(folderPath).then((tree) => {
+            dispatch({
+              type: "SET_WORKSPACE_TREE",
+              payload: { workspaceId: folderPath, tree }
+            });
+          })
+        );
+      }
+
+      const selectedFilePath = workspace?.selectedFilePath;
+      if (shouldLoadSelectedFile && selectedFilePath) {
+        tasks.push(
+          (async () => {
+            try {
+              const content = isTextPreviewPath(selectedFilePath)
+                ? await readFileContent(selectedFilePath)
+                : "";
+              dispatch({
+                type: "SET_WORKSPACE_FILE_CONTENT",
+                payload: { workspaceId: folderPath, content }
+              });
+            } catch (error) {
+              dispatch({
+                type: "SET_WORKSPACE_SELECTED_FILE",
+                payload: { workspaceId: folderPath, filePath: null }
+              });
+              dispatch({
+                type: "SET_WORKSPACE_ERROR",
+                payload: { workspaceId: folderPath, error: String(error) }
+              });
+            }
+          })()
+        );
+      }
+
+      if (tasks.length > 0) {
+        await Promise.all(tasks);
+      }
+
+      const supportedTypes = await getSupportedFileTypes();
       dispatch({ type: "SET_SUPPORTED_FILE_TYPES", payload: supportedTypes });
-      dispatch({ type: "SET_FILE_TREE", payload: tree });
     } catch (err) {
-      dispatch({ type: "SET_ERROR", payload: String(err) });
+      dispatch({
+        type: "SET_WORKSPACE_ERROR",
+        payload: { workspaceId: folderPath, error: String(err) }
+      });
     }
-  };
+  }, [dispatch, state.workspaces]);
 
   return openFolder;
 }

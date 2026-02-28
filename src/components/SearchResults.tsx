@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { ChevronDown, ChevronRight, FileText } from "lucide-react";
 import type { SearchFileResult } from "../types";
-import { useAppDispatch, useAppState } from "../context/AppContext";
+import { useActiveWorkspace, useAppDispatch, useAppState } from "../context/AppContext";
 import { readFileContent } from "../lib/tauri";
 import { isTextPreviewPath } from "../viewers/fileTypes";
 
@@ -36,18 +36,34 @@ function highlightMatch(text: string, query: string, caseSensitive: boolean): Re
 
 function SearchFileGroup({ result }: { result: SearchFileResult; }) {
   const [expanded, setExpanded] = useState(true);
-  const { searchQuery, caseSensitive, selectedFilePath } = useAppState();
+  const { activeWorkspaceId } = useAppState();
+  const activeWorkspace = useActiveWorkspace();
   const dispatch = useAppDispatch();
 
+  if (!activeWorkspaceId || !activeWorkspace) {
+    return null;
+  }
+
+  const { searchQuery, caseSensitive, selectedFilePath } = activeWorkspace;
+
   const handleMatchClick = async (filePath: string) => {
-    dispatch({ type: "SET_SELECTED_FILE", payload: filePath });
+    dispatch({
+      type: "SET_WORKSPACE_SELECTED_FILE",
+      payload: { workspaceId: activeWorkspaceId, filePath }
+    });
     try {
       const content = isTextPreviewPath(filePath)
         ? await readFileContent(filePath)
         : "";
-      dispatch({ type: "SET_FILE_CONTENT", payload: content });
+      dispatch({
+        type: "SET_WORKSPACE_FILE_CONTENT",
+        payload: { workspaceId: activeWorkspaceId, content }
+      });
     } catch (err) {
-      dispatch({ type: "SET_ERROR", payload: String(err) });
+      dispatch({
+        type: "SET_WORKSPACE_ERROR",
+        payload: { workspaceId: activeWorkspaceId, error: String(err) }
+      });
     }
   };
 
@@ -145,7 +161,13 @@ function SearchFileGroup({ result }: { result: SearchFileResult; }) {
 }
 
 export function SearchResults() {
-  const { searchResults, searchLoading, searchQuery } = useAppState();
+  const activeWorkspace = useActiveWorkspace();
+
+  if (!activeWorkspace) {
+    return null;
+  }
+
+  const { searchResults, searchLoading, searchQuery } = activeWorkspace;
 
   if (searchLoading) {
     return (

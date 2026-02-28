@@ -1,15 +1,33 @@
+import { useEffect } from "react";
 import { useAppState } from "../context/AppContext";
 import { useSearch } from "../lib/useSearch";
+import { useOpenFolder } from "../lib/useOpenFolder";
 import { FileTree } from "./FileTree";
 import { SearchBar } from "./SearchBar";
 import { SearchResults } from "./SearchResults";
 
 export function Sidebar() {
-  const { fileTree, rootPath, searchQuery } = useAppState();
+  const { activeWorkspaceId, workspaces } = useAppState();
+  const activeWorkspace = activeWorkspaceId ? workspaces[activeWorkspaceId] : null;
+  const openFolder = useOpenFolder();
 
   useSearch();
 
-  const hasSearch = searchQuery.trim().length > 0;
+  useEffect(() => {
+    if (!activeWorkspace) return;
+    if (activeWorkspace.treeLoaded || activeWorkspace.loading) return;
+    void openFolder(activeWorkspace.path);
+  }, [
+    activeWorkspace?.id,
+    activeWorkspace?.treeLoaded,
+    activeWorkspace?.loading,
+    activeWorkspace?.path,
+    openFolder
+  ]);
+
+  const hasSearch = activeWorkspace ? activeWorkspace.searchQuery.trim().length > 0 : false;
+  const hasWorkspace = !!activeWorkspace;
+  const fileTree = activeWorkspace?.fileTree ?? [];
 
   return (
     <div
@@ -20,11 +38,11 @@ export function Sidebar() {
         backgroundColor: "var(--bg-sidebar)"
       }}
     >
-      {rootPath && <SearchBar />}
+      {hasWorkspace && <SearchBar />}
       <div style={{ flex: 1, overflowY: "auto" }}>
         {hasSearch ? <SearchResults /> : (
           <>
-            {rootPath && (
+            {hasWorkspace && (
               <div
                 style={{
                   display: "flex",
@@ -42,7 +60,7 @@ export function Sidebar() {
                 エクスプローラー
               </div>
             )}
-            {fileTree.length > 0 ? <FileTree entries={fileTree} depth={0} /> : rootPath
+            {fileTree.length > 0 ? <FileTree entries={fileTree} depth={0} /> : hasWorkspace
               ? (
                 <div
                   style={{

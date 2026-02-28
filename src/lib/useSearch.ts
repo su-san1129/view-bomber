@@ -1,30 +1,54 @@
 import { useEffect, useRef } from "react";
-import { useAppDispatch, useAppState } from "../context/AppContext";
+import { useActiveWorkspace, useAppDispatch, useAppState } from "../context/AppContext";
 import { searchFiles } from "./tauri";
 
 export function useSearch() {
-  const { rootPath, searchQuery, caseSensitive, searchFileType } = useAppState();
+  const { activeWorkspaceId } = useAppState();
+  const activeWorkspace = useActiveWorkspace();
   const dispatch = useAppDispatch();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rootPath = activeWorkspace?.path ?? null;
+  const searchQuery = activeWorkspace?.searchQuery ?? "";
+  const caseSensitive = activeWorkspace?.caseSensitive ?? false;
+  const searchFileType = activeWorkspace?.searchFileType ?? "all";
 
   useEffect(() => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
 
-    if (!rootPath || !searchQuery.trim()) {
-      dispatch({ type: "SET_SEARCH_RESULTS", payload: [] });
+    if (!activeWorkspaceId || !rootPath || !searchQuery.trim()) {
+      if (activeWorkspaceId) {
+        dispatch({
+          type: "SET_WORKSPACE_SEARCH_RESULTS",
+          payload: { workspaceId: activeWorkspaceId, results: [] }
+        });
+      }
       return;
     }
 
-    dispatch({ type: "SET_SEARCH_LOADING", payload: true });
+    dispatch({
+      type: "SET_WORKSPACE_SEARCH_LOADING",
+      payload: { workspaceId: activeWorkspaceId, loading: true }
+    });
 
     timerRef.current = setTimeout(async () => {
       try {
-        const results = await searchFiles(rootPath, searchQuery, caseSensitive, searchFileType);
-        dispatch({ type: "SET_SEARCH_RESULTS", payload: results });
+        const results = await searchFiles(
+          rootPath,
+          searchQuery,
+          caseSensitive,
+          searchFileType
+        );
+        dispatch({
+          type: "SET_WORKSPACE_SEARCH_RESULTS",
+          payload: { workspaceId: activeWorkspaceId, results }
+        });
       } catch {
-        dispatch({ type: "SET_SEARCH_RESULTS", payload: [] });
+        dispatch({
+          type: "SET_WORKSPACE_SEARCH_RESULTS",
+          payload: { workspaceId: activeWorkspaceId, results: [] }
+        });
       }
     }, 300);
 
@@ -33,5 +57,12 @@ export function useSearch() {
         clearTimeout(timerRef.current);
       }
     };
-  }, [rootPath, searchQuery, caseSensitive, searchFileType, dispatch]);
+  }, [
+    activeWorkspaceId,
+    rootPath,
+    searchQuery,
+    caseSensitive,
+    searchFileType,
+    dispatch
+  ]);
 }

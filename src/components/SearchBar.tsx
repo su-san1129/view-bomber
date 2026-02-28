@@ -1,11 +1,18 @@
 import { useRef } from "react";
 import { Search, X } from "lucide-react";
-import { useAppDispatch, useAppState } from "../context/AppContext";
+import { useActiveWorkspace, useAppDispatch, useAppState } from "../context/AppContext";
 
 export function SearchBar() {
-  const { searchQuery, caseSensitive, searchFileType, supportedFileTypes } = useAppState();
+  const { activeWorkspaceId, supportedFileTypes } = useAppState();
+  const activeWorkspace = useActiveWorkspace();
   const dispatch = useAppDispatch();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  if (!activeWorkspaceId || !activeWorkspace) {
+    return null;
+  }
+
+  const { searchQuery, caseSensitive, searchFileType } = activeWorkspace;
 
   return (
     <div
@@ -27,7 +34,11 @@ export function SearchBar() {
       >
         <select
           value={searchFileType}
-          onChange={(e) => dispatch({ type: "SET_SEARCH_FILE_TYPE", payload: e.target.value })}
+          onChange={(e) =>
+            dispatch({
+              type: "SET_WORKSPACE_SEARCH_FILE_TYPE",
+              payload: { workspaceId: activeWorkspaceId, fileType: e.target.value }
+            })}
           style={{
             height: 22,
             border: "none",
@@ -56,10 +67,17 @@ export function SearchBar() {
           ref={inputRef}
           type="text"
           value={searchQuery}
-          onChange={(e) => dispatch({ type: "SET_SEARCH_QUERY", payload: e.target.value })}
+          onChange={(e) =>
+            dispatch({
+              type: "SET_WORKSPACE_SEARCH_QUERY",
+              payload: { workspaceId: activeWorkspaceId, query: e.target.value }
+            })}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
-              dispatch({ type: "CLEAR_SEARCH" });
+              dispatch({
+                type: "CLEAR_WORKSPACE_SEARCH",
+                payload: { workspaceId: activeWorkspaceId }
+              });
               inputRef.current?.blur();
             }
           }}
@@ -76,7 +94,11 @@ export function SearchBar() {
           }}
         />
         <button
-          onClick={() => dispatch({ type: "TOGGLE_CASE_SENSITIVE" })}
+          onClick={() =>
+            dispatch({
+              type: "TOGGLE_WORKSPACE_CASE_SENSITIVE",
+              payload: { workspaceId: activeWorkspaceId }
+            })}
           title="大文字小文字を区別"
           style={{
             display: "flex",
@@ -106,7 +128,11 @@ export function SearchBar() {
         </button>
         {searchQuery && (
           <button
-            onClick={() => dispatch({ type: "CLEAR_SEARCH" })}
+            onClick={() =>
+              dispatch({
+                type: "CLEAR_WORKSPACE_SEARCH",
+                payload: { workspaceId: activeWorkspaceId }
+              })}
             title="クリア"
             style={{
               display: "flex",

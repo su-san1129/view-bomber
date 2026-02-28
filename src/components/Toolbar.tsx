@@ -1,14 +1,20 @@
 import { FolderOpen, Moon, Sun } from "lucide-react";
-import { useAppState } from "../context/AppContext";
+import { useActiveWorkspace, useAppState } from "../context/AppContext";
 import { useOpenFolder } from "../lib/useOpenFolder";
 import { useTheme } from "../lib/useTheme";
 
+const OPEN_FOLDER_OPTION = "__open_folder__";
+
 export function Toolbar() {
-  const { rootPath } = useAppState();
+  const { workspaceOrder, workspaces } = useAppState();
+  const activeWorkspace = useActiveWorkspace();
   const openFolder = useOpenFolder();
   const { theme, toggleTheme } = useTheme();
 
-  const folderName = rootPath ? rootPath.split("/").pop() : null;
+  const workspaceItems = workspaceOrder
+    .map((workspaceId) => workspaces[workspaceId])
+    .filter((workspace) => !!workspace);
+  const activeWorkspaceId = activeWorkspace?.id ?? "";
 
   return (
     <div
@@ -44,11 +50,41 @@ export function Toolbar() {
         <FolderOpen size={14} />
         フォルダを開く
       </button>
-      {folderName && (
-        <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-ui)" }}>
-          {folderName}
-        </span>
-      )}
+      <select
+        value={activeWorkspaceId}
+        onChange={(event) => {
+          const next = event.target.value;
+          if (next === OPEN_FOLDER_OPTION) {
+            void openFolder();
+            return;
+          }
+          if (next) {
+            void openFolder(next);
+          }
+        }}
+        style={{
+          height: "var(--h-icon-btn)",
+          maxWidth: 320,
+          borderRadius: "var(--radius-sm)",
+          border: "1px solid var(--border-color)",
+          backgroundColor: "var(--bg-main)",
+          color: "var(--text-primary)",
+          padding: "0 var(--sp-2)",
+          fontSize: "var(--font-ui)"
+        }}
+      >
+        {!activeWorkspace && (
+          <option value="" disabled>
+            Workspaceを選択
+          </option>
+        )}
+        {workspaceItems.map((workspace) => (
+          <option key={workspace.id} value={workspace.id}>
+            {workspace.name}
+          </option>
+        ))}
+        <option value={OPEN_FOLDER_OPTION}>フォルダを開く...</option>
+      </select>
       <div style={{ flex: 1 }} />
       <button
         onClick={toggleTheme}
