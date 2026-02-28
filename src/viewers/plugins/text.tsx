@@ -1,11 +1,107 @@
 import { type RefObject, useMemo, useState } from "react";
+import hljs from "highlight.js";
 import type { ViewerPlugin } from "../types";
+import { textExtensions } from "../textFormats";
+
+const MAX_INITIAL_RENDER_LINES = 3000;
+const MAX_HIGHLIGHT_CHARS = 250000;
+
+function getLowerFileName(filePath: string): string {
+  const rawName = filePath.split(/[/\\]/).pop() ?? "";
+  return rawName.toLowerCase();
+}
+
+function resolveHighlightLanguage(filePath: string): string | null {
+  const extension = filePath.split(".").pop()?.toLowerCase() ?? "";
+  const fileName = getLowerFileName(filePath);
+
+  const byExtension: Record<string, string> = {
+    ts: "typescript",
+    tsx: "typescript",
+    js: "javascript",
+    jsx: "javascript",
+    mjs: "javascript",
+    cjs: "javascript",
+    py: "python",
+    rb: "ruby",
+    rs: "rust",
+    go: "go",
+    java: "java",
+    c: "c",
+    h: "c",
+    cpp: "cpp",
+    hpp: "cpp",
+    sh: "bash",
+    bash: "bash",
+    zsh: "bash",
+    fish: "bash",
+    ps1: "powershell",
+    bat: "dos",
+    cmd: "dos",
+    css: "css",
+    scss: "scss",
+    less: "less",
+    json: "json",
+    yaml: "yaml",
+    yml: "yaml",
+    toml: "ini",
+    xml: "xml",
+    sql: "sql",
+    log: "plaintext",
+    txt: "plaintext",
+    text: "plaintext",
+    swift: "swift",
+    kt: "kotlin",
+    dart: "dart",
+    lua: "lua",
+    php: "php",
+    r: "r",
+    properties: "properties",
+    ini: "ini"
+  };
+
+  if (fileName === "dockerfile") return "dockerfile";
+  if (fileName === "makefile" || fileName === "gnumakefile") return "makefile";
+  if (fileName.startsWith(".env")) return "ini";
+  if (fileName === ".editorconfig") return "ini";
+  if (fileName === ".gitignore") return "plaintext";
+
+  return byExtension[extension] ?? null;
+}
 
 function TextViewer(
-  { content, contentRef }: { content: string; contentRef: RefObject<HTMLDivElement | null>; }
+  {
+    filePath,
+    content,
+    contentRef
+  }: { filePath: string; content: string; contentRef: RefObject<HTMLDivElement | null>; }
 ) {
   const [wrap, setWrap] = useState(true);
+  const [showAll, setShowAll] = useState(false);
   const lines = useMemo(() => content.split(/\r?\n/), [content]);
+  const totalLines = lines.length;
+  const hasLineLimit = totalLines > MAX_INITIAL_RENDER_LINES;
+
+  const visibleLines = useMemo(
+    () => (showAll || !hasLineLimit ? lines : lines.slice(0, MAX_INITIAL_RENDER_LINES)),
+    [hasLineLimit, lines, showAll]
+  );
+  const visibleText = useMemo(() => visibleLines.join("\n"), [visibleLines]);
+  const lineOffset = 0;
+
+  const highlightLines = useMemo(() => {
+    if (visibleText.length > MAX_HIGHLIGHT_CHARS) return null;
+
+    const language = resolveHighlightLanguage(filePath);
+    try {
+      const highlighted = language
+        ? hljs.highlight(visibleText, { language, ignoreIllegals: true })
+        : hljs.highlightAuto(visibleText);
+      return highlighted.value.split("\n");
+    } catch {
+      return null;
+    }
+  }, [filePath, visibleText]);
 
   return (
     <div ref={contentRef} className="text-viewer">
@@ -18,13 +114,37 @@ function TextViewer(
         >
           Wrap: {wrap ? "ON" : "OFF"}
         </button>
-        <span className="text-meta">Lines: {lines.length}</span>
+        <span className="text-meta">
+          Lines: {totalLines}
+        </span>
+        {hasLineLimit && !showAll && (
+          <span className="text-meta">
+            Showing first {MAX_INITIAL_RENDER_LINES}
+          </span>
+        )}
+        {hasLineLimit && !showAll && (
+          <button
+            type="button"
+            className="text-wrap-toggle"
+            onClick={() => setShowAll(true)}
+            title="全行を表示"
+          >
+            Show all
+          </button>
+        )}
       </div>
       <div className={`text-grid ${wrap ? "is-wrap" : "is-no-wrap"}`}>
-        {lines.map((line, index) => (
+        {visibleLines.map((line, index) => (
           <div key={index} className="text-line-row">
-            <span className="text-line-no">{index + 1}</span>
-            <span className="text-line-content">{line.length > 0 ? line : " "}</span>
+            <span className="text-line-no">{index + 1 + lineOffset}</span>
+            {highlightLines
+              ? (
+                <span
+                  className="text-line-content is-highlighted hljs"
+                  dangerouslySetInnerHTML={{ __html: highlightLines[index] || " " }}
+                />
+              )
+              : <span className="text-line-content">{line.length > 0 ? line : " "}</span>}
           </div>
         ))}
       </div>
@@ -32,51 +152,12 @@ function TextViewer(
   );
 }
 
-const textExtensions = [
-  "txt",
-  "text",
-  "log",
-  "ini",
-  "cfg",
-  "conf",
-  "yaml",
-  "yml",
-  "toml",
-  "xml",
-  "sql",
-  "sh",
-  "bash",
-  "zsh",
-  "fish",
-  "ps1",
-  "bat",
-  "cmd",
-  "c",
-  "h",
-  "cpp",
-  "hpp",
-  "py",
-  "rb",
-  "go",
-  "rs",
-  "java",
-  "js",
-  "jsx",
-  "mjs",
-  "cjs",
-  "ts",
-  "tsx",
-  "css",
-  "scss",
-  "less"
-];
-
 export const textViewerPlugin: ViewerPlugin = {
   id: "text",
   label: "Text",
   extensions: textExtensions,
   supportsFind: true,
-  render({ content, contentRef }) {
-    return <TextViewer content={content} contentRef={contentRef} />;
+  render({ filePath, content, contentRef }) {
+    return <TextViewer filePath={filePath} content={content} contentRef={contentRef} />;
   }
 };

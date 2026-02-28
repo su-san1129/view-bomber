@@ -1,5 +1,6 @@
 import { createContext, type Dispatch, type ReactNode, useContext, useReducer } from "react";
 import type { FileEntry, SearchFileResult, SupportedFileType } from "../types";
+import { textExtensions } from "../viewers/textFormats";
 
 interface AppState {
   rootPath: string | null;
@@ -53,44 +54,7 @@ const initialState: AppState = {
     {
       id: "text",
       label: "Text",
-      extensions: [
-        "txt",
-        "text",
-        "log",
-        "ini",
-        "cfg",
-        "conf",
-        "yaml",
-        "yml",
-        "toml",
-        "xml",
-        "sql",
-        "sh",
-        "bash",
-        "zsh",
-        "fish",
-        "ps1",
-        "bat",
-        "cmd",
-        "c",
-        "h",
-        "cpp",
-        "hpp",
-        "py",
-        "rb",
-        "go",
-        "rs",
-        "java",
-        "js",
-        "jsx",
-        "mjs",
-        "cjs",
-        "ts",
-        "tsx",
-        "css",
-        "scss",
-        "less"
-      ],
+      extensions: textExtensions,
       searchable: true
     },
     {

@@ -1,3 +1,5 @@
+import { isTextSpecialFileName, textExtensions } from "./textFormats";
+
 const TEXT_PREVIEW_EXTENSIONS = new Set([
   "md",
   "markdown",
@@ -7,42 +9,7 @@ const TEXT_PREVIEW_EXTENSIONS = new Set([
   "csv",
   "tsv",
   "dxf",
-  "txt",
-  "text",
-  "log",
-  "ini",
-  "cfg",
-  "conf",
-  "yaml",
-  "yml",
-  "toml",
-  "xml",
-  "sql",
-  "sh",
-  "bash",
-  "zsh",
-  "fish",
-  "ps1",
-  "bat",
-  "cmd",
-  "c",
-  "h",
-  "cpp",
-  "hpp",
-  "py",
-  "rb",
-  "go",
-  "rs",
-  "java",
-  "js",
-  "jsx",
-  "mjs",
-  "cjs",
-  "ts",
-  "tsx",
-  "css",
-  "scss",
-  "less"
+  ...textExtensions
 ]);
 
 export function getFileExtension(filePath: string): string {
@@ -53,5 +20,5 @@ export function getFileExtension(filePath: string): string {
 }
 
 export function isTextPreviewPath(filePath: string): boolean {
-  return TEXT_PREVIEW_EXTENSIONS.has(getFileExtension(filePath));
+  return TEXT_PREVIEW_EXTENSIONS.has(getFileExtension(filePath)) || isTextSpecialFileName(filePath);
 }

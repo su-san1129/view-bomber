@@ -58,6 +58,31 @@ fn text_extensions() -> Vec<String> {
         "css".to_string(),
         "scss".to_string(),
         "less".to_string(),
+        "swift".to_string(),
+        "kt".to_string(),
+        "dart".to_string(),
+        "lua".to_string(),
+        "php".to_string(),
+        "r".to_string(),
+        "properties".to_string(),
+        "editorconfig".to_string(),
+        "gitignore".to_string(),
+        "ndjson".to_string(),
+    ]
+}
+
+fn text_special_file_names() -> Vec<String> {
+    vec![
+        "dockerfile".to_string(),
+        "makefile".to_string(),
+        "gnumakefile".to_string(),
+        ".env".to_string(),
+        ".env.local".to_string(),
+        ".env.development".to_string(),
+        ".env.production".to_string(),
+        ".env.test".to_string(),
+        ".gitignore".to_string(),
+        ".editorconfig".to_string(),
     ]
 }
 
@@ -131,10 +156,67 @@ fn is_extension_in(path: &Path, extensions: &[String]) -> bool {
         .unwrap_or(false)
 }
 
+fn is_file_name_in(path: &Path, names: &[String]) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| names.iter().any(|n| name.eq_ignore_ascii_case(n)))
+        .unwrap_or(false)
+}
+
+fn is_text_special_file(path: &Path) -> bool {
+    is_file_name_in(path, &text_special_file_names())
+}
+
+fn is_hidden_path_except_text_special(path: &Path) -> bool {
+    let mut components = path.components().peekable();
+    while let Some(component) = components.next() {
+        let part = component.as_os_str().to_string_lossy();
+        if !part.starts_with('.') {
+            continue;
+        }
+
+        let is_last = components.peek().is_none();
+        if is_last && is_text_special_file(path) {
+            continue;
+        }
+
+        return true;
+    }
+    false
+}
+
 fn is_supported_file(path: &Path) -> bool {
-    supported_file_types()
-        .iter()
-        .any(|kind| is_extension_in(path, &kind.extensions))
+    supported_file_types().iter().any(|kind| {
+        is_extension_in(path, &kind.extensions) || (kind.id == "text" && is_text_special_file(path))
+    })
+}
+
+fn matches_search_target(path: &Path, extensions: &[String], include_text_special: bool) -> bool {
+    is_extension_in(path, extensions) || (include_text_special && is_text_special_file(path))
+}
+
+fn should_include_hidden_name(name: &str, path: &Path, is_dir: bool) -> bool {
+    if !name.starts_with('.') {
+        return true;
+    }
+
+    if is_dir {
+        return false;
+    }
+
+    is_text_special_file(path)
+}
+
+fn include_text_special_for_filter(file_type_filter: &str) -> bool {
+    file_type_filter == "all" || file_type_filter == "text"
+}
+
+fn has_supported_file_in_dir(path: &Path) -> bool {
+    WalkDir::new(path)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| !is_hidden_path_except_text_special(e.path()))
+        .any(|e| e.file_type().is_file() && is_supported_file(e.path()))
 }
 
 fn extensions_from_filter(file_type_filter: &str) -> Vec<String> {
@@ -177,21 +259,16 @@ fn build_tree(dir: &Path) -> Vec<FileEntry> {
 
     for item in items {
         let name = item.file_name().to_string_lossy().to_string();
-
-        // Skip hidden files/directories
-        if name.starts_with('.') {
-            continue;
-        }
-
         let path = item.path();
         let is_dir = path.is_dir();
 
+        if !should_include_hidden_name(&name, &path, is_dir) {
+            continue;
+        }
+
         if is_dir {
             // Check if directory contains any supported files (recursively)
-            let has_supported = WalkDir::new(&path)
-                .into_iter()
-                .filter_map(|e| e.ok())
-                .any(|e| e.file_type().is_file() && is_supported_file(e.path()));
+            let has_supported = has_supported_file_in_dir(&path);
 
             if has_supported {
                 let children = build_tree(&path);
@@ -282,6 +359,7 @@ pub async fn search_files(
     if extensions.is_empty() {
         return Ok(Vec::new());
     }
+    let include_text_special = include_text_special_for_filter(&file_type_filter);
 
     let mut results: Vec<SearchFileResult> = Vec::new();
 
@@ -289,14 +367,9 @@ pub async fn search_files(
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| {
-            // Skip hidden files/directories
-            !e.path()
-                .components()
-                .any(|c| c.as_os_str().to_string_lossy().starts_with('.'))
+            !is_hidden_path_except_text_special(e.path())
         })
-        .filter(|e| {
-            e.file_type().is_file() && is_extension_in(e.path(), &extensions)
-        })
+        .filter(|e| e.file_type().is_file() && matches_search_target(e.path(), &extensions, include_text_special))
     {
         let path = entry.path();
         let file = match fs::File::open(path) {
@@ -374,5 +447,19 @@ mod tests {
         let path = Path::new("/tmp/sample.TXT");
         let extensions = vec!["txt".to_string()];
         assert!(is_extension_in(path, &extensions));
+    }
+
+    #[test]
+    fn recognizes_text_special_file_names() {
+        assert!(is_text_special_file(Path::new("/tmp/Dockerfile")));
+        assert!(is_text_special_file(Path::new("/tmp/.env.local")));
+        assert!(is_text_special_file(Path::new("/tmp/.gitignore")));
+    }
+
+    #[test]
+    fn hidden_filter_allows_text_special_files_only() {
+        assert!(!is_hidden_path_except_text_special(Path::new("/tmp/.env")));
+        assert!(is_hidden_path_except_text_special(Path::new("/tmp/.git")));
+        assert!(is_hidden_path_except_text_special(Path::new("/tmp/.secret/notes.txt")));
     }
 }

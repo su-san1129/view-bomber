@@ -527,6 +527,17 @@ mark.find-highlight-current {
   color: var(--md-pre-text);
 }
 
+.text-line-content.is-highlighted {
+  display: block;
+  background: transparent;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.text-line-content.is-highlighted.hljs {
+  background: transparent;
+}
+
 .text-grid.is-wrap .text-line-content {
   white-space: pre-wrap;
   word-break: break-word;
