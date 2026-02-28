@@ -48,6 +48,7 @@ const initialState: AppState = {
     { id: "md", label: "Markdown", extensions: ["md", "markdown"], searchable: true },
     { id: "html", label: "HTML", extensions: ["html", "htm"], searchable: true },
     { id: "json", label: "JSON", extensions: ["json"], searchable: true },
+    { id: "csv", label: "CSV", extensions: ["csv", "tsv"], searchable: true },
     { id: "image", label: "Image", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"], searchable: false },
     { id: "pdf", label: "PDF", extensions: ["pdf"], searchable: false },
   ],

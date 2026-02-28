@@ -535,6 +535,62 @@ mark.find-highlight-current {
   color: #c586c0;
 }
 
+/* ===== CSV viewer ===== */
+.csv-meta {
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-size: var(--font-ui);
+}
+
+.csv-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--md-table-border);
+  border-radius: 8px;
+}
+
+.csv-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--font-ui);
+}
+
+.csv-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  background-color: var(--md-table-head-bg);
+  color: var(--md-table-head-text);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--md-table-border);
+  border-left: 1px solid var(--md-table-border-light);
+  white-space: nowrap;
+}
+
+.csv-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--md-table-border-light);
+  border-left: 1px solid var(--md-table-border-light);
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  vertical-align: top;
+}
+
+.csv-table th:first-child,
+.csv-table td:first-child {
+  border-left: none;
+}
+
+.csv-table tr:last-child td {
+  border-bottom: none;
+}
+
+.csv-table tr:hover td {
+  background-color: var(--md-table-hover);
+}
+
 /* ===== PDF viewer ===== */
 .pdf-viewer {
   display: flex;

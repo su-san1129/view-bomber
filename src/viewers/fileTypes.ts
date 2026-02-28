@@ -4,6 +4,8 @@ const TEXT_PREVIEW_EXTENSIONS = new Set([
   "html",
   "htm",
   "json",
+  "csv",
+  "tsv",
 ]);
 
 export function getFileExtension(filePath: string): string {

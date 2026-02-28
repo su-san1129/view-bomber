@@ -1,5 +1,6 @@
 import { htmlViewerPlugin } from "./plugins/html";
 import { imageViewerPlugin } from "./plugins/image";
+import { csvViewerPlugin } from "./plugins/csv";
 import { jsonViewerPlugin } from "./plugins/json";
 import { markdownViewerPlugin } from "./plugins/markdown";
 import { pdfViewerPlugin } from "./plugins/pdf";
@@ -18,6 +19,7 @@ export function registerViewer(plugin: ViewerPlugin) {
 registerViewer(markdownViewerPlugin);
 registerViewer(htmlViewerPlugin);
 registerViewer(jsonViewerPlugin);
+registerViewer(csvViewerPlugin);
 registerViewer(imageViewerPlugin);
 registerViewer(pdfViewerPlugin);
 

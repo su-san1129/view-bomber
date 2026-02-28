@@ -41,6 +41,12 @@ fn supported_file_types() -> Vec<SupportedFileType> {
             searchable: true,
         },
         SupportedFileType {
+            id: "csv".to_string(),
+            label: "CSV".to_string(),
+            extensions: vec!["csv".to_string(), "tsv".to_string()],
+            searchable: true,
+        },
+        SupportedFileType {
             id: "image".to_string(),
             label: "Image".to_string(),
             extensions: vec![
