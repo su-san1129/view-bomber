@@ -150,6 +150,20 @@ function hasApacheLicense(license) {
   return /Apache-2\.0|Apache License/i.test(license);
 }
 
+function isPlatformSpecificNpmPackage(name) {
+  if (name === "fsevents") {
+    return true;
+  }
+
+  if (
+    /(?:-|\/)(darwin|linux|win32|windows|freebsd|openbsd|android|netbsd|sunos|wasm32)-/i.test(name)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 function collectNodePackages() {
   const nodeModulesDir = join(rootDir, "node_modules");
   if (!existsSync(nodeModulesDir)) {
@@ -172,6 +186,10 @@ function collectNodePackages() {
     }
 
     if (typeof pkg.name !== "string" || typeof pkg.version !== "string") {
+      return;
+    }
+
+    if (isPlatformSpecificNpmPackage(pkg.name)) {
       return;
     }
 
@@ -402,6 +420,12 @@ function collectApacheNotices(packages) {
 
   for (const pkg of packages) {
     if (!hasApacheLicense(pkg.license)) {
+      continue;
+    }
+
+    // Cargo NOTICE extraction depends on local cargo registry cache and causes
+    // non-deterministic output between developer machines and CI.
+    if (pkg.ecosystem === "cargo") {
       continue;
     }
 
