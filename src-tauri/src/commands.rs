@@ -1,11 +1,14 @@
 use calamine::{open_workbook_auto, Reader};
+use chardetng::EncodingDetector;
 use csv::{ByteRecord, ReaderBuilder};
+use duckdb::Connection;
+use parquet::file::reader::{FileReader, SerializedFileReader};
 use quick_xml::events::Event;
 use quick_xml::Reader as XmlReader;
 use serde::Serialize;
 use std::fs;
 use std::io::{BufRead, Read, Seek, SeekFrom};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 use zip::ZipArchive;
 
@@ -42,12 +45,54 @@ pub struct DocxTextData {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileContentData {
+    pub content: String,
+    pub encoding: String,
+    pub is_utf8: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct CsvChunkData {
     pub delimiter: String,
     pub header: Vec<String>,
     pub rows: Vec<Vec<String>>,
     pub next_cursor: Option<u64>,
     pub eof: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParquetPreviewData {
+    pub columns: Vec<String>,
+    pub rows: Vec<Vec<String>>,
+    pub total_rows: usize,
+    pub truncated: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LaunchTarget {
+    pub workspace_path: String,
+    pub selected_file_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DuckDbTablePreviewData {
+    pub table_name: String,
+    pub columns: Vec<String>,
+    pub rows: Vec<Vec<String>>,
+    pub total_rows: usize,
+    pub truncated: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DuckDbTableInfo {
+    pub schema_name: String,
+    pub table_name: String,
+    pub display_name: String,
 }
 
 fn text_extensions() -> Vec<String> {
@@ -124,6 +169,14 @@ fn document_extensions() -> Vec<String> {
     vec!["docx".to_string()]
 }
 
+fn parquet_extensions() -> Vec<String> {
+    vec!["parquet".to_string()]
+}
+
+fn duckdb_extensions() -> Vec<String> {
+    vec!["duckdb".to_string(), "ddb".to_string()]
+}
+
 fn supported_file_types() -> Vec<SupportedFileType> {
     vec![
         SupportedFileType {
@@ -173,6 +226,18 @@ fn supported_file_types() -> Vec<SupportedFileType> {
             label: "Document".to_string(),
             extensions: document_extensions(),
             searchable: true,
+        },
+        SupportedFileType {
+            id: "parquet".to_string(),
+            label: "Parquet".to_string(),
+            extensions: parquet_extensions(),
+            searchable: false,
+        },
+        SupportedFileType {
+            id: "duckdb".to_string(),
+            label: "DuckDB".to_string(),
+            extensions: duckdb_extensions(),
+            searchable: false,
         },
         SupportedFileType {
             id: "image".to_string(),
@@ -492,6 +557,246 @@ fn parse_docx_text(path: &Path) -> Result<String, String> {
     Ok(text)
 }
 
+fn parse_parquet_preview(path: &Path, max_rows: usize) -> Result<ParquetPreviewData, String> {
+    let file = fs::File::open(path).map_err(|e| format!("Failed to open parquet file: {}", e))?;
+    let reader = SerializedFileReader::new(file)
+        .map_err(|e| format!("Failed to open parquet reader: {}", e))?;
+    let metadata = reader.metadata().file_metadata();
+    let total_rows = metadata.num_rows() as usize;
+    let columns = metadata
+        .schema_descr()
+        .columns()
+        .iter()
+        .map(|column| column.name().to_string())
+        .collect::<Vec<String>>();
+
+    let mut rows: Vec<Vec<String>> = Vec::new();
+    let mut iter = reader
+        .get_row_iter(None)
+        .map_err(|e| format!("Failed to iterate parquet rows: {}", e))?;
+
+    for _ in 0..max_rows {
+        if let Some(row_result) = iter.next() {
+            let row = row_result.map_err(|e| format!("Failed to read parquet row: {}", e))?;
+            let values = row
+                .get_column_iter()
+                .map(|(_name, field)| field.to_string())
+                .collect::<Vec<String>>();
+            rows.push(values);
+        } else {
+            break;
+        }
+    }
+
+    Ok(ParquetPreviewData {
+        columns,
+        total_rows,
+        truncated: rows.len() < total_rows,
+        rows,
+    })
+}
+
+fn quote_sql_identifier(identifier: &str) -> String {
+    format!("\"{}\"", identifier.replace('"', "\"\""))
+}
+
+fn read_duckdb_tables_internal(path: &Path) -> Result<Vec<DuckDbTableInfo>, String> {
+    let connection = Connection::open(path).map_err(|e| format!("Failed to open DuckDB file: {}", e))?;
+    let mut statement = connection
+        .prepare(
+            "
+            SELECT table_schema, table_name
+            FROM information_schema.tables
+            WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
+              AND table_type = 'BASE TABLE'
+            ORDER BY table_schema, table_name
+            ",
+        )
+        .map_err(|e| format!("Failed to list DuckDB tables: {}", e))?;
+
+    let mut rows = statement
+        .query([])
+        .map_err(|e| format!("Failed to query DuckDB tables: {}", e))?;
+    let mut tables: Vec<DuckDbTableInfo> = Vec::new();
+
+    while let Some(row) = rows
+        .next()
+        .map_err(|e| format!("Failed to read DuckDB table row: {}", e))?
+    {
+        let table_schema = row
+            .get::<usize, String>(0)
+            .map_err(|e| format!("Failed to parse DuckDB table schema: {}", e))?;
+        let table_name = row
+            .get::<usize, String>(1)
+            .map_err(|e| format!("Failed to parse DuckDB table name: {}", e))?;
+        let display_name = if table_schema.eq_ignore_ascii_case("main") {
+            table_name.clone()
+        } else {
+            format!("{}.{}", table_schema, table_name)
+        };
+        tables.push(DuckDbTableInfo {
+            schema_name: table_schema,
+            table_name,
+            display_name,
+        });
+    }
+
+    Ok(tables)
+}
+
+fn resolve_duckdb_table_reference(
+    connection: &Connection,
+    schema_name: Option<&str>,
+    table_name: &str,
+) -> Result<String, String> {
+    if let Some(schema) = schema_name {
+        return Ok(format!(
+            "{}.{}",
+            quote_sql_identifier(schema),
+            quote_sql_identifier(table_name)
+        ));
+    }
+
+    let mut statement = connection
+        .prepare(
+            "
+            SELECT table_schema, table_name
+            FROM information_schema.tables
+            WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
+              AND table_type = 'BASE TABLE'
+              AND table_name = ?
+            ORDER BY CASE WHEN table_schema = 'main' THEN 0 ELSE 1 END, table_schema
+            LIMIT 2
+            ",
+        )
+        .map_err(|e| format!("Failed to resolve DuckDB table name: {}", e))?;
+
+    let mut rows = statement
+        .query([table_name])
+        .map_err(|e| format!("Failed to resolve DuckDB table query: {}", e))?;
+
+    let first = rows
+        .next()
+        .map_err(|e| format!("Failed to resolve DuckDB table row: {}", e))?;
+    let Some(first_row) = first else {
+        return Ok(quote_sql_identifier(table_name));
+    };
+
+    let first_schema = first_row
+        .get::<usize, String>(0)
+        .map_err(|e| format!("Failed to read DuckDB resolved schema: {}", e))?;
+    let first_table = first_row
+        .get::<usize, String>(1)
+        .map_err(|e| format!("Failed to read DuckDB resolved table: {}", e))?;
+
+    let second = rows
+        .next()
+        .map_err(|e| format!("Failed to resolve DuckDB table ambiguity: {}", e))?;
+    if second.is_some() {
+        return Err(format!(
+            "Ambiguous table name '{}'. Use schema.table (for example: {}.{})",
+            table_name, first_schema, first_table
+        ));
+    }
+
+    Ok(format!(
+        "{}.{}",
+        quote_sql_identifier(&first_schema),
+        quote_sql_identifier(&first_table)
+    ))
+}
+
+fn read_duckdb_table_preview_internal(
+    path: &Path,
+    schema_name: Option<&str>,
+    table_name: &str,
+    max_rows: usize,
+) -> Result<DuckDbTablePreviewData, String> {
+    let connection = Connection::open(path).map_err(|e| format!("Failed to open DuckDB file: {}", e))?;
+    let resolved_table_reference = resolve_duckdb_table_reference(&connection, schema_name, table_name)?;
+
+    let count_sql = format!("SELECT COUNT(*) FROM {}", resolved_table_reference);
+    let total_rows_i64 = connection
+        .query_row(&count_sql, [], |row| row.get::<usize, i64>(0))
+        .map_err(|e| format!("Failed to count DuckDB table rows: {}", e))?;
+    let total_rows = if total_rows_i64 < 0 {
+        0
+    } else {
+        total_rows_i64 as usize
+    };
+
+    let mut columns_stmt = connection
+        .prepare(
+            "
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = ? AND table_name = ?
+            ORDER BY ordinal_position
+            ",
+        )
+        .map_err(|e| format!("Failed to query DuckDB columns: {}", e))?;
+    let schema_lookup = schema_name.unwrap_or("main");
+    let mut columns_iter = columns_stmt
+        .query([schema_lookup, table_name])
+        .map_err(|e| format!("Failed to iterate DuckDB columns: {}", e))?;
+    let mut columns: Vec<String> = Vec::new();
+    while let Some(row) = columns_iter
+        .next()
+        .map_err(|e| format!("Failed to read DuckDB column row: {}", e))?
+    {
+        columns.push(
+            row.get::<usize, String>(0)
+                .map_err(|e| format!("Failed to parse DuckDB column name: {}", e))?,
+        );
+    }
+    if columns.is_empty() {
+        return Err(format!("No columns found for table '{}'", table_name));
+    }
+
+    let select_list = columns
+        .iter()
+        .map(|column| format!("CAST({} AS VARCHAR)", quote_sql_identifier(column)))
+        .collect::<Vec<String>>()
+        .join(", ");
+    let preview_sql = format!(
+        "SELECT {} FROM {} LIMIT {}",
+        select_list, resolved_table_reference, max_rows
+    );
+
+    let mut statement = connection
+        .prepare(&preview_sql)
+        .map_err(|e| format!("Failed to query DuckDB preview rows: {}", e))?;
+
+    let mut rows_iter = statement
+        .query([])
+        .map_err(|e| format!("Failed to iterate DuckDB preview rows: {}", e))?;
+    let mut rows: Vec<Vec<String>> = Vec::new();
+
+    while let Some(row) = rows_iter
+        .next()
+        .map_err(|e| format!("Failed to read DuckDB preview row: {}", e))?
+    {
+        let mut values: Vec<String> = Vec::with_capacity(columns.len());
+        for column_index in 0..columns.len() {
+            let value = row
+                .get::<usize, Option<String>>(column_index)
+                .map_err(|e| format!("Failed to parse DuckDB cell value: {}", e))?;
+            values.push(value.unwrap_or_default());
+        }
+        rows.push(values);
+    }
+
+    let truncated = rows.len() < total_rows;
+
+    Ok(DuckDbTablePreviewData {
+        table_name: table_name.to_string(),
+        columns,
+        rows,
+        total_rows,
+        truncated,
+    })
+}
+
 fn search_line_matches(
     lines: impl Iterator<Item = String>,
     query: &str,
@@ -634,6 +939,53 @@ fn build_tree(dir: &Path) -> Vec<FileEntry> {
     entries
 }
 
+fn resolve_launch_target_path(path_arg: &str) -> Result<Option<LaunchTarget>, String> {
+    let raw_path = PathBuf::from(path_arg);
+    let absolute_path = if raw_path.is_absolute() {
+        raw_path
+    } else {
+        let cwd = std::env::current_dir().map_err(|e| format!("Failed to get current dir: {}", e))?;
+        cwd.join(raw_path)
+    };
+
+    if !absolute_path.exists() {
+        return Ok(None);
+    }
+
+    let canonical_path = absolute_path
+        .canonicalize()
+        .map_err(|e| format!("Failed to resolve launch path: {}", e))?;
+
+    if canonical_path.is_dir() {
+        return Ok(Some(LaunchTarget {
+            workspace_path: canonical_path.to_string_lossy().to_string(),
+            selected_file_path: None,
+        }));
+    }
+
+    if canonical_path.is_file() {
+        let Some(parent) = canonical_path.parent() else {
+            return Err("Failed to resolve parent directory for launch file".to_string());
+        };
+
+        return Ok(Some(LaunchTarget {
+            workspace_path: parent.to_string_lossy().to_string(),
+            selected_file_path: Some(canonical_path.to_string_lossy().to_string()),
+        }));
+    }
+
+    Ok(None)
+}
+
+#[tauri::command]
+pub async fn get_launch_target() -> Result<Option<LaunchTarget>, String> {
+    let mut args = std::env::args().skip(1);
+    let Some(path_arg) = args.next() else {
+        return Ok(None);
+    };
+    resolve_launch_target_path(&path_arg)
+}
+
 #[tauri::command]
 pub async fn read_directory_tree(path: String) -> Result<Vec<FileEntry>, String> {
     let dir = Path::new(&path);
@@ -652,7 +1004,7 @@ pub async fn get_supported_file_types() -> Result<Vec<SupportedFileType>, String
 }
 
 #[tauri::command]
-pub async fn read_file_content(path: String) -> Result<String, String> {
+pub async fn read_file_content(path: String) -> Result<FileContentData, String> {
     let file_path = Path::new(&path);
     if !file_path.exists() {
         return Err(format!("File not found: {}", path));
@@ -660,7 +1012,39 @@ pub async fn read_file_content(path: String) -> Result<String, String> {
     if !file_path.is_file() {
         return Err(format!("Not a file: {}", path));
     }
-    fs::read_to_string(file_path).map_err(|e| format!("Failed to read file: {}", e))
+    let bytes = fs::read(file_path).map_err(|e| format!("Failed to read file: {}", e))?;
+
+    // dxf-parser expects ASCII text DXF. Binary DXF starts with this fixed signature.
+    if has_extension(file_path, "dxf") && bytes.starts_with(b"AutoCAD Binary DXF") {
+        return Err("Failed to read file: Binary DXF is not supported yet".to_string());
+    }
+
+    if bytes.is_empty() {
+        return Ok(FileContentData {
+            content: String::new(),
+            encoding: "UTF-8".to_string(),
+            is_utf8: true,
+        });
+    }
+
+    if let Ok(content) = std::str::from_utf8(&bytes) {
+        return Ok(FileContentData {
+            content: content.to_string(),
+            encoding: "UTF-8".to_string(),
+            is_utf8: true,
+        });
+    }
+
+    let mut detector = EncodingDetector::new();
+    detector.feed(&bytes, true);
+    let encoding = detector.guess(None, true);
+    let (decoded, _, _) = encoding.decode(&bytes);
+
+    Ok(FileContentData {
+        content: decoded.into_owned(),
+        encoding: encoding.name().to_string(),
+        is_utf8: false,
+    })
 }
 
 #[tauri::command]
@@ -693,6 +1077,71 @@ pub async fn read_docx_text(path: String) -> Result<DocxTextData, String> {
     }
 
     parse_docx_text(file_path).map(|text| DocxTextData { text })
+}
+
+#[tauri::command]
+pub async fn read_parquet(
+    path: String,
+    max_rows: Option<usize>,
+) -> Result<ParquetPreviewData, String> {
+    let file_path = Path::new(&path);
+    if !file_path.exists() {
+        return Err(format!("File not found: {}", path));
+    }
+    if !file_path.is_file() {
+        return Err(format!("Not a file: {}", path));
+    }
+    if !has_extension(file_path, "parquet") {
+        return Err("Target file is not .parquet".to_string());
+    }
+
+    let rows_limit = max_rows.unwrap_or(1000).max(1);
+    parse_parquet_preview(file_path, rows_limit)
+}
+
+#[tauri::command]
+pub async fn read_duckdb_tables(path: String) -> Result<Vec<DuckDbTableInfo>, String> {
+    let file_path = Path::new(&path);
+    if !file_path.exists() {
+        return Err(format!("File not found: {}", path));
+    }
+    if !file_path.is_file() {
+        return Err(format!("Not a file: {}", path));
+    }
+    if !is_extension_in(file_path, &duckdb_extensions()) {
+        return Err("Target file is not a DuckDB file (.duckdb/.ddb)".to_string());
+    }
+
+    read_duckdb_tables_internal(file_path)
+}
+
+#[tauri::command]
+pub async fn read_duckdb_table_preview(
+    path: String,
+    schema_name: Option<String>,
+    table_name: String,
+    max_rows: Option<usize>,
+) -> Result<DuckDbTablePreviewData, String> {
+    let file_path = Path::new(&path);
+    if !file_path.exists() {
+        return Err(format!("File not found: {}", path));
+    }
+    if !file_path.is_file() {
+        return Err(format!("Not a file: {}", path));
+    }
+    if !is_extension_in(file_path, &duckdb_extensions()) {
+        return Err("Target file is not a DuckDB file (.duckdb/.ddb)".to_string());
+    }
+    if table_name.trim().is_empty() {
+        return Err("table_name must not be empty".to_string());
+    }
+
+    let rows_limit = max_rows.unwrap_or(200).max(1);
+    let schema_name = schema_name
+        .as_ref()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty());
+    read_duckdb_table_preview_internal(file_path, schema_name, table_name.trim(), rows_limit)
 }
 
 #[tauri::command]

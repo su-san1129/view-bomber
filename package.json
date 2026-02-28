@@ -2,18 +2,25 @@
   "name": "view-bomber",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
+  "bin": {
+    "viewb": "scripts/viewb.mjs"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "viewb": "bun scripts/viewb.mjs",
     "format": "dprint fmt",
     "format:check": "dprint check",
     "check": "bun run format:check && bun run lint && bunx tsc --noEmit && cd src-tauri && cargo check",
     "lint": "bun run lint:frontend && bun run lint:rust",
     "lint:frontend": "oxlint src vite.config.ts --deny-warnings",
     "lint:rust": "cd src-tauri && cargo clippy --all-targets --all-features -- -D warnings",
+    "licenses:generate": "bun scripts/generate-third-party-licenses.mjs",
+    "licenses:check": "bun run licenses:generate --strict && git diff --exit-code -- LICENSE THIRD_PARTY_NOTICES.md APACHE_NOTICES.md",
     "prepare": "husky"
   },
   "lint-staged": {

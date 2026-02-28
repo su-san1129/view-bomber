@@ -1,9 +1,10 @@
 import { type ReactNode, useState } from "react";
-import { ChevronDown, ChevronRight, FileText } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import type { SearchFileResult } from "../types";
 import { useActiveWorkspace, useAppDispatch, useAppState } from "../context/AppContext";
 import { readFileContent } from "../lib/tauri";
 import { requiresRawTextContent } from "../viewers/fileTypes";
+import { resolveFileIcon } from "./fileIcon";
 
 function highlightMatch(text: string, query: string, caseSensitive: boolean): ReactNode {
   if (!query) return text;
@@ -45,6 +46,7 @@ function SearchFileGroup({ result }: { result: SearchFileResult; }) {
   }
 
   const { searchQuery, caseSensitive, selectedFilePath } = activeWorkspace;
+  const fileIcon = resolveFileIcon(result.file_path);
 
   const handleMatchClick = async (filePath: string) => {
     dispatch({
@@ -52,12 +54,17 @@ function SearchFileGroup({ result }: { result: SearchFileResult; }) {
       payload: { workspaceId: activeWorkspaceId, filePath }
     });
     try {
-      const content = requiresRawTextContent(filePath)
+      const fileContent = requiresRawTextContent(filePath)
         ? await readFileContent(filePath)
-        : "";
+        : { content: "", encoding: null, isUtf8: null };
       dispatch({
         type: "SET_WORKSPACE_FILE_CONTENT",
-        payload: { workspaceId: activeWorkspaceId, content }
+        payload: {
+          workspaceId: activeWorkspaceId,
+          content: fileContent.content,
+          encoding: fileContent.encoding,
+          isUtf8: fileContent.isUtf8
+        }
       });
     } catch (err) {
       dispatch({
@@ -105,7 +112,7 @@ function SearchFileGroup({ result }: { result: SearchFileResult; }) {
               style={{ flexShrink: 0, marginRight: 2, color: "var(--text-secondary)" }}
             />
           )}
-        <FileText size={16} style={{ flexShrink: 0, marginRight: 6, color: "#519aba" }} />
+        <fileIcon.Icon size={16} style={{ flexShrink: 0, marginRight: 6, color: fileIcon.color }} />
         <span
           style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}
         >

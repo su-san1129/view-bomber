@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "A view-bomber Desktop App"
 authors = ["you"]
 edition = "2021"
+license = "MIT"
+readme = "../README.md"
 
 [lib]
 name = "view_bomber_lib"
@@ -23,3 +25,6 @@ calamine = "0.26"
 quick-xml = "0.38"
 zip = "2"
 csv = "1"
+chardetng = "0.1"
+parquet = "53"
+duckdb = { version = "1", features = ["bundled"] }

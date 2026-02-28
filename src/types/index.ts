@@ -23,6 +23,11 @@ export interface SupportedFileType {
   searchable: boolean;
 }
 
+export interface LaunchTarget {
+  workspacePath: string;
+  selectedFilePath: string | null;
+}
+
 export interface XlsxSheetData {
   name: string;
   rows: string[][];
@@ -36,10 +41,37 @@ export interface DocxTextData {
   text: string;
 }
 
+export interface FileContentData {
+  content: string;
+  encoding: string;
+  isUtf8: boolean;
+}
+
 export interface CsvChunkData {
   delimiter: string;
   header: string[];
   rows: string[][];
   next_cursor: number | null;
   eof: boolean;
+}
+
+export interface ParquetPreviewData {
+  columns: string[];
+  rows: string[][];
+  totalRows: number;
+  truncated: boolean;
+}
+
+export interface DuckDbTablePreviewData {
+  tableName: string;
+  columns: string[];
+  rows: string[][];
+  totalRows: number;
+  truncated: boolean;
+}
+
+export interface DuckDbTableInfo {
+  schemaName: string;
+  tableName: string;
+  displayName: string;
 }

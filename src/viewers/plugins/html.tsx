@@ -52,7 +52,8 @@ function HtmlPreview({ filePath, content }: { filePath: string; content: string;
         const distIndexPath = getDistIndexPath(filePath);
         if (await exists(distIndexPath)) {
           try {
-            targetContent = await readFileContent(distIndexPath);
+            const data = await readFileContent(distIndexPath);
+            targetContent = data.content;
             targetPath = distIndexPath;
             usedFallback = true;
           } catch {

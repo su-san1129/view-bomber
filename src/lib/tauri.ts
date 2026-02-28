@@ -3,7 +3,12 @@ import { open } from "@tauri-apps/plugin-dialog";
 import type {
   CsvChunkData,
   DocxTextData,
+  DuckDbTableInfo,
+  DuckDbTablePreviewData,
+  FileContentData,
   FileEntry,
+  LaunchTarget,
+  ParquetPreviewData,
   SearchFileResult,
   SupportedFileType,
   XlsxData
@@ -18,8 +23,8 @@ export async function readDirectoryTree(path: string): Promise<FileEntry[]> {
   return invoke<FileEntry[]>("read_directory_tree", { path });
 }
 
-export async function readFileContent(path: string): Promise<string> {
-  return invoke<string>("read_file_content", { path });
+export async function readFileContent(path: string): Promise<FileContentData> {
+  return invoke<FileContentData>("read_file_content", { path });
 }
 
 export async function searchFiles(
@@ -38,6 +43,10 @@ export async function searchFiles(
 
 export async function getSupportedFileTypes(): Promise<SupportedFileType[]> {
   return invoke<SupportedFileType[]>("get_supported_file_types");
+}
+
+export async function getLaunchTarget(): Promise<LaunchTarget | null> {
+  return invoke<LaunchTarget | null>("get_launch_target");
 }
 
 export async function readXlsx(path: string): Promise<XlsxData> {
@@ -59,5 +68,30 @@ export async function readCsvChunk(
     cursor,
     maxRows,
     delimiterHint
+  });
+}
+
+export async function readParquet(path: string, maxRows: number): Promise<ParquetPreviewData> {
+  return invoke<ParquetPreviewData>("read_parquet", {
+    path,
+    maxRows
+  });
+}
+
+export async function readDuckDbTables(path: string): Promise<DuckDbTableInfo[]> {
+  return invoke<DuckDbTableInfo[]>("read_duckdb_tables", { path });
+}
+
+export async function readDuckDbTablePreview(
+  path: string,
+  schemaName: string | null,
+  tableName: string,
+  maxRows: number
+): Promise<DuckDbTablePreviewData> {
+  return invoke<DuckDbTablePreviewData>("read_duckdb_table_preview", {
+    path,
+    schemaName,
+    tableName,
+    maxRows
   });
 }

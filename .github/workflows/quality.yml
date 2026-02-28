@@ -30,6 +30,9 @@ jobs:
       - name: TypeScript check
         run: bunx tsc --noEmit
 
+      - name: License metadata check
+        run: bun run licenses:check
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 

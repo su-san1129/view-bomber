@@ -1,8 +1,9 @@
 mod commands;
 
 use commands::{
-    get_supported_file_types, read_csv_chunk, read_directory_tree, read_docx_text,
-    read_file_content, read_xlsx, search_files,
+    get_launch_target, get_supported_file_types, read_csv_chunk, read_directory_tree,
+    read_docx_text, read_duckdb_table_preview, read_duckdb_tables, read_file_content, read_parquet,
+    read_xlsx, search_files,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -16,8 +17,12 @@ pub fn run() {
             read_csv_chunk,
             read_xlsx,
             read_docx_text,
+            read_parquet,
+            read_duckdb_tables,
+            read_duckdb_table_preview,
             search_files,
-            get_supported_file_types
+            get_supported_file_types,
+            get_launch_target
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

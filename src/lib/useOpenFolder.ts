@@ -47,12 +47,17 @@ export function useOpenFolder() {
         tasks.push(
           (async () => {
             try {
-              const content = requiresRawTextContent(selectedFilePath)
+              const fileContent = requiresRawTextContent(selectedFilePath)
                 ? await readFileContent(selectedFilePath)
-                : "";
+                : { content: "", encoding: null, isUtf8: null };
               dispatch({
                 type: "SET_WORKSPACE_FILE_CONTENT",
-                payload: { workspaceId: folderPath, content }
+                payload: {
+                  workspaceId: folderPath,
+                  content: fileContent.content,
+                  encoding: fileContent.encoding,
+                  isUtf8: fileContent.isUtf8
+                }
               });
             } catch (error) {
               dispatch({

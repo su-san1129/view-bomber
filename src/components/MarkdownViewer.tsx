@@ -18,6 +18,8 @@ export function MarkdownViewer() {
 
   const selectedFilePath = activeWorkspace?.selectedFilePath ?? null;
   const fileContent = activeWorkspace?.fileContent ?? null;
+  const fileEncoding = activeWorkspace?.fileEncoding ?? null;
+  const fileIsUtf8 = activeWorkspace?.fileIsUtf8 ?? null;
   const loading = activeWorkspace?.loading ?? false;
   const error = activeWorkspace?.error ?? null;
   const closeFindBar = useCallback(() => setFindVisible(false), []);
@@ -41,13 +43,18 @@ export function MarkdownViewer() {
           const kind = event.type;
           if (typeof kind === "object" && "modify" in kind) {
             try {
-              const content = requiresRawTextContent(selectedFilePath)
+              const fileContent = requiresRawTextContent(selectedFilePath)
                 ? await readFileContent(selectedFilePath)
-                : "";
+                : { content: "", encoding: null, isUtf8: null };
               if (!activeWorkspaceId) return;
               dispatch({
                 type: "SET_WORKSPACE_FILE_CONTENT",
-                payload: { workspaceId: activeWorkspaceId, content }
+                payload: {
+                  workspaceId: activeWorkspaceId,
+                  content: fileContent.content,
+                  encoding: fileContent.encoding,
+                  isUtf8: fileContent.isUtf8
+                }
               });
             } catch {
               // File may have been deleted
@@ -166,6 +173,7 @@ export function MarkdownViewer() {
         style={{
           display: "flex",
           alignItems: "center",
+          gap: "var(--sp-2)",
           height: "var(--h-tab)",
           padding: "0 var(--sp-4)",
           fontSize: "var(--font-ui)",
@@ -175,14 +183,33 @@ export function MarkdownViewer() {
           userSelect: "none"
         }}
       >
-        {fileName}
+        <span>{fileName}</span>
+        {fileEncoding && (
+          <span
+            style={{
+              fontSize: "var(--font-label)",
+              lineHeight: "18px",
+              padding: "0 6px",
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: "var(--bg-hover)",
+              color: "var(--text-secondary)"
+            }}
+          >
+            Encoding: {fileEncoding}
+            {fileIsUtf8 === false ? " (detected)" : ""}
+          </span>
+        )}
       </div>
       {findVisible && supportsFind && <FindBar contentRef={contentRef} onClose={closeFindBar} />}
       <div
         style={{
           flex: 1,
-          overflowY: viewer?.id === "html" || viewer?.id === "pdf" ? "hidden" : "auto",
-          padding: viewer?.id === "html" || viewer?.id === "pdf" ? 0 : "var(--sp-6) var(--sp-10)"
+          overflowY: viewer?.id === "html" || viewer?.id === "pdf" || viewer?.id === "dxf"
+            ? "hidden"
+            : "auto",
+          padding: viewer?.id === "html" || viewer?.id === "pdf" || viewer?.id === "dxf"
+            ? 0
+            : "var(--sp-6) var(--sp-10)"
         }}
       >
         {viewer

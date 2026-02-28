@@ -193,6 +193,8 @@ const initialState: AppState = {
     },
     { id: "spreadsheet", label: "Spreadsheet", extensions: ["xlsx"], searchable: true },
     { id: "document", label: "Document", extensions: ["docx"], searchable: true },
+    { id: "parquet", label: "Parquet", extensions: ["parquet"], searchable: false },
+    { id: "duckdb", label: "DuckDB", extensions: ["duckdb", "ddb"], searchable: false },
     {
       id: "image",
       label: "Image",

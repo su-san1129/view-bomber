@@ -27,6 +27,7 @@ multiple file types from a folder tree with fast preview, search, and format-spe
   `.editorconfig` (line numbers + wrap toggle + syntax highlight + large-file partial render)
 - Spreadsheet: `.xlsx`, `.xlsm` (sheet tabs + table preview)
 - Document: `.docx` (paragraph text extraction preview)
+- DuckDB: `.duckdb`, `.ddb` (table list + preview)
 - Images: `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`, `.bmp`, `.ico`, `.avif`
 - PDF: `.pdf` (embedded `pdf.js` viewer with continuous vertical scroll and zoom)
 
@@ -48,6 +49,27 @@ bun install
 
 ```bash
 bun run tauri dev
+```
+
+## Open From CLI (`viewb`)
+
+`viewb` can open a directory or file path directly:
+
+```bash
+viewb .
+viewb ./README.md
+```
+
+Setup (once):
+
+```bash
+bun link
+```
+
+Local (without `bun link`):
+
+```bash
+bun run viewb -- .
 ```
 
 ## Quality & Validation
@@ -91,8 +113,9 @@ The CI workflow (`.github/workflows/quality.yml`) enforces:
 2. `bun run format:check`
 3. `bun run lint:frontend`
 4. `bunx tsc --noEmit`
-5. `cargo clippy --all-targets --all-features -- -D warnings`
-6. `cargo check`
+5. `bun run licenses:check`
+6. `cargo clippy --all-targets --all-features -- -D warnings`
+7. `cargo check`
 
 ## Pre-commit Automation
 
@@ -147,3 +170,21 @@ Hook entrypoint:
 - oxlint
 - dprint
 - pdf.js (`pdfjs-dist`)
+
+## License
+
+- Project license: MIT (see `LICENSE`)
+- Third-party dependency notices: `THIRD_PARTY_NOTICES.md`
+- Apache NOTICE aggregations: `APACHE_NOTICES.md`
+
+To refresh third-party notices:
+
+```bash
+bun run licenses:generate
+```
+
+To fail CI when Cargo fallback mode is used or unknown licenses remain:
+
+```bash
+bun run licenses:check
+```
