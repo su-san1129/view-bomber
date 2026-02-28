@@ -1,4 +1,4 @@
-import { type RefObject, useMemo, useState } from "react";
+import { type ClipboardEvent, type RefObject, useCallback, useMemo, useState } from "react";
 import hljs from "highlight.js";
 import type { ViewerPlugin } from "../types";
 import { textExtensions } from "../textFormats";
@@ -103,6 +103,29 @@ function TextViewer(
     }
   }, [filePath, visibleText]);
 
+  const handleCopy = useCallback((event: ClipboardEvent<HTMLDivElement>) => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const copied: string[] = [];
+
+    for (let i = 0; i < selection.rangeCount; i += 1) {
+      const fragment = selection.getRangeAt(i).cloneContents();
+      const wrapper = document.createElement("div");
+
+      wrapper.appendChild(fragment);
+      wrapper.querySelectorAll(".text-line-no").forEach((element) => element.remove());
+
+      copied.push(wrapper.innerText);
+    }
+
+    const nextValue = copied.join("\n");
+    if (nextValue.length === 0) return;
+
+    event.preventDefault();
+    event.clipboardData.setData("text/plain", nextValue);
+  }, []);
+
   return (
     <div ref={contentRef} className="text-viewer">
       <div className="text-toolbar">
@@ -133,7 +156,7 @@ function TextViewer(
           </button>
         )}
       </div>
-      <div className={`text-grid ${wrap ? "is-wrap" : "is-no-wrap"}`}>
+      <div className={`text-grid ${wrap ? "is-wrap" : "is-no-wrap"}`} onCopy={handleCopy}>
         {visibleLines.map((line, index) => (
           <div key={index} className="text-line-row">
             <span className="text-line-no">{index + 1 + lineOffset}</span>

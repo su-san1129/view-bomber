@@ -519,7 +519,10 @@ mark.find-highlight-current {
   padding: 0 10px 0 8px;
   color: var(--text-secondary);
   text-align: right;
+  -webkit-user-select: none;
+  -moz-user-select: none;
   user-select: none;
+  pointer-events: none;
   border-right: 1px solid var(--md-pre-border);
 }
 
