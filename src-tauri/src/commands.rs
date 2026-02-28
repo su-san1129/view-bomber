@@ -132,7 +132,7 @@ fn supported_file_types() -> Vec<SupportedFileType> {
         SupportedFileType {
             id: "json".to_string(),
             label: "JSON".to_string(),
-            extensions: vec!["json".to_string()],
+            extensions: vec!["json".to_string(), "geojson".to_string()],
             searchable: true,
         },
         SupportedFileType {
@@ -642,10 +642,18 @@ mod tests {
         assert!(contains_extension(&extensions, "md"));
         assert!(contains_extension(&extensions, "txt"));
         assert!(contains_extension(&extensions, "dxf"));
+        assert!(contains_extension(&extensions, "geojson"));
         assert!(contains_extension(&extensions, "xlsx"));
         assert!(contains_extension(&extensions, "xlsm"));
         assert!(contains_extension(&extensions, "docx"));
         assert!(!contains_extension(&extensions, "png"));
+    }
+
+    #[test]
+    fn json_filter_includes_geojson_extension() {
+        let extensions = extensions_from_filter("json");
+        assert!(contains_extension(&extensions, "json"));
+        assert!(contains_extension(&extensions, "geojson"));
     }
 
     #[test]

@@ -16,7 +16,7 @@ multiple file types from a folder tree with fast preview, search, and format-spe
 
 - Markdown: `.md`, `.markdown`
 - HTML: `.html`, `.htm`
-- JSON: `.json` (tree view)
+- JSON: `.json`, `.geojson` (tree view + GeoJSON map preview)
 - CSV/TSV: `.csv`, `.tsv` (table view, auto delimiter detection: comma/tab/semicolon)
 - DXF: `.dxf` (2D canvas preview for common entities: line/polyline/circle/arc)
 - Text: `.txt`, `.text`, `.log`, `.ini`, `.cfg`, `.conf`, `.yaml`, `.yml`, `.toml`, `.xml`, `.sql`,
@@ -28,7 +28,7 @@ multiple file types from a folder tree with fast preview, search, and format-spe
 - Spreadsheet: `.xlsx`, `.xlsm` (sheet tabs + table preview)
 - Document: `.docx` (paragraph text extraction preview)
 - Images: `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`, `.bmp`, `.ico`, `.avif`
-- PDF: `.pdf` (embedded `pdf.js` viewer with page navigation and zoom)
+- PDF: `.pdf` (embedded `pdf.js` viewer with continuous vertical scroll and zoom)
 
 ## Requirements
 
@@ -106,6 +106,11 @@ Hook entrypoint:
 - `.husky/pre-commit`
 
 ## Troubleshooting
+
+### GeoJSON map preview
+
+- GeoJSON map preview uses OpenStreetMap tiles, so internet access is required for base map tiles.
+- Even when tiles are unavailable, vector features are still rendered.
 
 ### PDF fails to render
 

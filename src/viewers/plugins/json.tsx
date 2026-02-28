@@ -1,5 +1,7 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { parseGeoJson } from "../geojson";
+import { GeoJsonMapViewer } from "./geojson";
 import type { ViewerPlugin } from "../types";
 
 type JsonPrimitive = string | number | boolean | null;
@@ -120,21 +122,28 @@ function JsonTreeNode({ node, depth }: { node: JsonNode; depth: number; }) {
   );
 }
 
-function JsonTreeViewer({ content }: { content: string; }) {
-  const rootNode = toNode(JSON.parse(content) as JsonValue, "$");
+function JsonTreeViewer({ value }: { value: JsonValue; }) {
+  const rootNode = useMemo(() => toNode(value, "$"), [value]);
   return <JsonTreeNode node={rootNode} depth={0} />;
 }
 
 export const jsonViewerPlugin: ViewerPlugin = {
   id: "json",
   label: "JSON",
-  extensions: ["json"],
+  extensions: ["json", "geojson"],
   supportsFind: true,
   render({ content, contentRef }) {
     try {
+      const parsed = JSON.parse(content) as JsonValue;
+      const geoJsonResult = parseGeoJson(content);
+
+      if (geoJsonResult.ok) {
+        return <GeoJsonMapViewer geojson={geoJsonResult.geojson} contentRef={contentRef} />;
+      }
+
       return (
         <div ref={contentRef} className="json-tree" style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <JsonTreeViewer content={content} />
+          <JsonTreeViewer value={parsed} />
         </div>
       );
     } catch {

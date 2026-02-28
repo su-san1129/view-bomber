@@ -6,6 +6,7 @@ const TEXT_PREVIEW_EXTENSIONS = new Set([
   "html",
   "htm",
   "json",
+  "geojson",
   "csv",
   "tsv",
   "dxf",

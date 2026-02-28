@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "allotment/dist/style.css";
+@import "leaflet/dist/leaflet.css";
 
 /* ===== Theme Variables ===== */
 :root,
@@ -778,12 +779,24 @@ mark.find-highlight-current {
   flex: 1;
   overflow: auto;
   padding: 16px;
+}
+
+.pdf-pages {
+  width: 100%;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.pdf-page {
+  width: fit-content;
+  min-width: min(100%, 220px);
+  position: relative;
 }
 
 .pdf-canvas {
+  display: block;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
   border-radius: 4px;
   background-color: #fff;
@@ -794,9 +807,58 @@ mark.find-highlight-current {
   font-size: var(--font-ui);
 }
 
+.pdf-page-status {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: var(--font-ui);
+  background-color: rgba(25, 25, 25, 0.72);
+}
+
+.pdf-page-error {
+  margin: 0 0 8px 0;
+  color: #f14c4c;
+  font-size: var(--font-ui);
+}
+
 .pdf-error {
   color: #f14c4c;
   font-size: var(--font-ui);
   max-width: 680px;
   line-height: 1.5;
+}
+
+/* ===== GeoJSON map viewer ===== */
+.geojson-view {
+  border: 1px solid var(--md-table-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: var(--bg-main);
+}
+
+.geojson-status {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: var(--font-ui);
+  user-select: none;
+}
+
+.geojson-map {
+  height: min(70vh, 700px);
+  min-height: 360px;
+  width: 100%;
+}
+
+.geojson-map .leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-main);
 }
