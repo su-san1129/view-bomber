@@ -10,9 +10,19 @@
     "tauri": "tauri",
     "format": "dprint fmt",
     "format:check": "dprint check",
+    "check": "npm run format:check && npm run lint && npx tsc --noEmit && cd src-tauri && cargo check",
     "lint": "npm run lint:frontend && npm run lint:rust",
-    "lint:frontend": "oxlint . --deny-warnings",
-    "lint:rust": "cd src-tauri && cargo clippy --all-targets --all-features -- -D warnings"
+    "lint:frontend": "oxlint src vite.config.ts --deny-warnings",
+    "lint:rust": "cd src-tauri && cargo clippy --all-targets --all-features -- -D warnings",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,mjs,cjs,json,md,yml,yaml}": [
+      "dprint fmt"
+    ],
+    "src/**/*.{ts,tsx,js,jsx,mjs,cjs}": [
+      "oxlint --deny-warnings"
+    ]
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -37,6 +47,8 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "dprint": "^0.52.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "oxlint": "^1.16.0",
     "tailwindcss": "^4.2.1",
     "typescript": "~5.8.3",

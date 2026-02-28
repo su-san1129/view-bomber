@@ -38,7 +38,12 @@ npm run format:check
 npm run lint:frontend # oxlint
 npm run lint:rust     # cargo clippy
 npm run lint          # 両方実行
+npm run check         # format + lint + ts + cargo check
 ```
+
+- Frontend は `oxlint --deny-warnings`（警告も失敗扱い）
+- Rust は `cargo clippy -- -D warnings`（警告も失敗扱い）
+- pre-commit で `lint-staged` が実行され、変更ファイルを `dprint + oxlint` で検査
 
 ## 技術スタック
 
