@@ -81,6 +81,50 @@
         box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
       }
 
+      .about {
+        margin-top: 16px;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: rgba(7, 18, 30, 0.62);
+        padding: 18px;
+      }
+
+      .about h2 {
+        margin: 0 0 8px;
+        font-size: 1.1rem;
+      }
+
+      .about p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .feature-grid {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .feature {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .feature strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 0.9rem;
+      }
+
+      .feature span {
+        color: var(--muted);
+        font-size: 0.84rem;
+        line-height: 1.35;
+      }
+
       .meta {
         margin-bottom: 14px;
         color: #d8e8ff;
@@ -165,6 +209,10 @@
         .buttons {
           grid-template-columns: 1fr;
         }
+
+        .feature-grid {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -200,6 +248,29 @@
         </div>
 
         <p class="muted">If a direct file is missing, open "All releases" and pick from Assets.</p>
+      </section>
+
+      <section class="about">
+        <h2>What is View Bomber?</h2>
+        <p>
+          View Bomber is a local desktop document viewer built with Tauri + React. It opens many file
+          types in one app with fast preview, folder browsing, and search.
+        </p>
+
+        <div class="feature-grid">
+          <div class="feature">
+            <strong>Multi-format Viewer</strong>
+            <span>Markdown, PDF, JSON/GeoJSON, CSV/TSV, DXF, DOCX, images, text, and more.</span>
+          </div>
+          <div class="feature">
+            <strong>Fast Local Workflow</strong>
+            <span>Open folders, switch files quickly, and search inside text-based content.</span>
+          </div>
+          <div class="feature">
+            <strong>Desktop Native</strong>
+            <span>Runs on macOS, Windows, and Linux with platform installers.</span>
+          </div>
+        </div>
       </section>
     </main>
 
