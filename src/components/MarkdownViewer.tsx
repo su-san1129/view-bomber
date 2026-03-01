@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { watchImmediate } from "@tauri-apps/plugin-fs";
 import { FileText } from "lucide-react";
 import { useActiveWorkspace, useAppDispatch, useAppState } from "../context/AppContext";
-import { readFileContent } from "../lib/tauri";
+import { exportMarkdownToPdf, readFileContent, savePdfDialog } from "../lib/tauri";
 import { EmptyState } from "./EmptyState";
 import { FindBar } from "./FindBar";
 import { requiresRawTextContent } from "../viewers/fileTypes";
@@ -15,6 +15,7 @@ export function MarkdownViewer() {
   const unwatchRef = useRef<(() => void) | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [findVisible, setFindVisible] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const selectedFilePath = activeWorkspace?.selectedFilePath ?? null;
   const fileContent = activeWorkspace?.fileContent ?? null;
@@ -25,6 +26,32 @@ export function MarkdownViewer() {
   const closeFindBar = useCallback(() => setFindVisible(false), []);
   const viewer = selectedFilePath ? resolveViewer(selectedFilePath) : null;
   const supportsFind = viewer?.supportsFind ?? true;
+  const isMarkdownViewer = viewer?.id === "markdown";
+  const fileName = selectedFilePath?.split("/").pop() ?? "";
+  const content = fileContent ?? "";
+
+  const onExportPdf = useCallback(async () => {
+    if (!activeWorkspaceId || !selectedFilePath || !isMarkdownViewer || exportingPdf) return;
+    const defaultPath = selectedFilePath.replace(/\.(md|markdown)$/i, ".pdf");
+    const selectedPath = await savePdfDialog(defaultPath);
+    if (!selectedPath) return;
+
+    try {
+      setExportingPdf(true);
+      await exportMarkdownToPdf(selectedFilePath, selectedPath);
+      dispatch({
+        type: "SET_WORKSPACE_ERROR",
+        payload: { workspaceId: activeWorkspaceId, error: null }
+      });
+    } catch (error) {
+      dispatch({
+        type: "SET_WORKSPACE_ERROR",
+        payload: { workspaceId: activeWorkspaceId, error: String(error) }
+      });
+    } finally {
+      setExportingPdf(false);
+    }
+  }, [activeWorkspaceId, dispatch, exportingPdf, isMarkdownViewer, selectedFilePath]);
 
   useEffect(() => {
     if (!selectedFilePath) return;
@@ -157,9 +184,6 @@ export function MarkdownViewer() {
     );
   }
 
-  const fileName = selectedFilePath.split("/").pop() ?? "";
-  const content = fileContent ?? "";
-
   return (
     <div
       style={{
@@ -198,6 +222,29 @@ export function MarkdownViewer() {
             Encoding: {fileEncoding}
             {fileIsUtf8 === false ? " (detected)" : ""}
           </span>
+        )}
+        {isMarkdownViewer && (
+          <button
+            type="button"
+            onClick={() => void onExportPdf()}
+            disabled={exportingPdf}
+            style={{
+              marginLeft: "auto",
+              display: "inline-flex",
+              alignItems: "center",
+              height: 24,
+              padding: "0 10px",
+              borderRadius: "var(--radius-sm)",
+              border: "1px solid var(--border-color)",
+              backgroundColor: exportingPdf ? "transparent" : "var(--bg-hover)",
+              color: exportingPdf ? "var(--text-muted)" : "var(--text-primary)",
+              cursor: exportingPdf ? "default" : "pointer",
+              fontSize: "var(--font-ui)"
+            }}
+            title="MarkdownをPDFとして書き出し"
+          >
+            {exportingPdf ? "書き出し中..." : "PDFとして書き出し"}
+          </button>
         )}
       </div>
       {findVisible && supportsFind && <FindBar contentRef={contentRef} onClose={closeFindBar} />}

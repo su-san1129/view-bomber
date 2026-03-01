@@ -15,7 +15,7 @@ type HatchPatternLine = {
 type HatchPattern = {
   lines: HatchPatternLine[];
 };
-type StrokeStyle = { dash: number[]; lineWidth: number; alpha: number; };
+type StrokeStyle = { dash: number[]; lineWidth: number; alpha: number; color: string; };
 
 type Primitive =
   | { kind: "line"; layer: string; start: Point; end: Point; stroke: StrokeStyle; }
@@ -73,6 +73,8 @@ interface ParsedDxf {
   bounds: Bounds;
   layers: LayerSummary[];
   layerStroke: Record<string, StrokeStyle>;
+  unsupportedEntities: string[];
+  renderWarnings: string[];
 }
 
 function isHatchPrimitive(
@@ -252,6 +254,72 @@ function layerColor(layer: string): string {
   return `hsl(${hue} 72% 64%)`;
 }
 
+function toByte(value: number): number {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function rgbToCss(r: number, g: number, b: number): string {
+  return `rgb(${toByte(r)} ${toByte(g)} ${toByte(b)})`;
+}
+
+function aciColor(index: number): string {
+  const aci = Math.floor(index);
+  const base: Record<number, [number, number, number]> = {
+    0: [255, 255, 255],
+    1: [255, 0, 0],
+    2: [255, 255, 0],
+    3: [0, 255, 0],
+    4: [0, 255, 255],
+    5: [0, 0, 255],
+    6: [255, 0, 255],
+    7: [255, 255, 255],
+    8: [128, 128, 128],
+    9: [192, 192, 192]
+  };
+  const fixed = base[aci];
+  if (fixed) return rgbToCss(fixed[0], fixed[1], fixed[2]);
+  const hue = ((Math.abs(aci) - 10) % 24) * 15;
+  return `hsl(${hue} 78% 58%)`;
+}
+
+function parseTrueColor(raw: unknown): string | null {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    const packed = raw & 0xffffff;
+    const r = (packed >> 16) & 0xff;
+    const g = (packed >> 8) & 0xff;
+    const b = packed & 0xff;
+    return rgbToCss(r, g, b);
+  }
+  if (typeof raw === "string") {
+    const value = raw.trim();
+    if (/^#?[0-9a-fA-F]{6}$/.test(value)) {
+      const hex = value.startsWith("#") ? value.slice(1) : value;
+      const packed = Number.parseInt(hex, 16);
+      const r = (packed >> 16) & 0xff;
+      const g = (packed >> 8) & 0xff;
+      const b = packed & 0xff;
+      return rgbToCss(r, g, b);
+    }
+  }
+  if (raw && typeof raw === "object") {
+    const value = raw as {
+      r?: unknown;
+      g?: unknown;
+      b?: unknown;
+      red?: unknown;
+      green?: unknown;
+      blue?: unknown;
+    };
+    const r = Number(value.r ?? value.red);
+    const g = Number(value.g ?? value.green);
+    const b = Number(value.b ?? value.blue);
+    if (Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b)) {
+      return rgbToCss(r, g, b);
+    }
+  }
+  return null;
+}
+
 function pickPoint(entity: Record<string, unknown>): Point | null {
   const candidates = [
     entity.start,
@@ -296,12 +364,49 @@ function pointDistanceToSegment(point: Point, start: Point, end: Point): number 
   return Math.hypot(point.x - proj.x, point.y - proj.y);
 }
 
-function normalizeMText(raw: string): string {
+function decodeCadTextEscapes(raw: string): string {
   return raw
+    .replace(/%%([dDpPcC%])/g, (_, token: string) => {
+      const code = token.toUpperCase();
+      if (code === "D") return "°";
+      if (code === "P") return "±";
+      if (code === "C") return "⌀";
+      return "%";
+    })
+    .replace(/\\~/g, " ")
+    .replace(/\\\\/g, "\\");
+}
+
+function normalizeStackFraction(value: string): string {
+  const text = value.trim();
+  if (text.length === 0) return "";
+  const separators = ["^", "#", "/"];
+  for (const sep of separators) {
+    const idx = text.indexOf(sep);
+    if (idx > 0 && idx < text.length - 1) {
+      const left = text.slice(0, idx).trim();
+      const right = text.slice(idx + 1).trim();
+      if (left.length > 0 && right.length > 0) {
+        return `${left}/${right}`;
+      }
+    }
+  }
+  return text;
+}
+
+function normalizeMText(raw: string): string {
+  const flattened = decodeCadTextEscapes(raw)
     .replace(/\\P/gi, "\n")
     .replace(/\\X/gi, "\n")
-    .replace(/\\[A-Za-z][^;]*;/g, "")
+    .replace(/\\S([^;]*);/gi, (_, stack: string) => normalizeStackFraction(stack))
+    .replace(/\\(A|C|F|H|Q|T|W|L|l|O|o|K|k)[^;]*;/g, "")
+    .replace(/\\[LlOoKk]/g, "")
     .replace(/[{}]/g, "")
+    .replace(/\r/g, "");
+  return flattened
+    .split("\n")
+    .map((line) => line.replace(/[ \t]+/g, " ").trim())
+    .join("\n")
     .trim();
 }
 
@@ -317,7 +422,8 @@ function readEntityText(entity: Record<string, unknown>, multiline: boolean): st
   for (const candidate of textCandidates) {
     const value = String(candidate ?? "").trim();
     if (value.length === 0) continue;
-    return multiline ? normalizeMText(value) : value;
+    const decoded = decodeCadTextEscapes(value);
+    return multiline ? normalizeMText(decoded) : decoded;
   }
   return "";
 }
@@ -440,6 +546,46 @@ function extractLayerTransparency(
   return out;
 }
 
+function extractLayerColors(
+  tables: Record<string, unknown> | undefined
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  const layerTable = (tables?.layer ?? tables?.layers ?? null) as Record<string, unknown> | null;
+  const layers = (layerTable?.layers ?? layerTable?.items ?? null) as
+    | Record<string, Record<string, unknown>>
+    | null;
+  if (!layers || typeof layers !== "object") return out;
+  for (const [name, value] of Object.entries(layers)) {
+    const trueColor = parseTrueColor(value.trueColor ?? value.color24 ?? value.rgb);
+    if (trueColor) {
+      out[name] = trueColor;
+      continue;
+    }
+    const aci = Number(value.colorNumber ?? value.colorIndex ?? value.color ?? value.aci);
+    if (Number.isFinite(aci) && aci > 0 && aci < 256) {
+      out[name] = aciColor(aci);
+      continue;
+    }
+    out[name] = aciColor(7);
+  }
+  return out;
+}
+
+function getGlobalLineTypeScale(header: Record<string, unknown> | undefined): number {
+  if (!header || typeof header !== "object") return 1;
+  const candidates = [header.$LTSCALE, header.ltscale, header.LTSCALE];
+  for (const candidate of candidates) {
+    if (typeof candidate === "number" && Number.isFinite(candidate) && candidate > 0) {
+      return candidate;
+    }
+    if (candidate && typeof candidate === "object") {
+      const value = Number((candidate as { value?: unknown; }).value);
+      if (Number.isFinite(value) && value > 0) return value;
+    }
+  }
+  return 1;
+}
+
 function lineWeightToPixels(raw: number): number {
   if (!Number.isFinite(raw) || raw < 0) return 1.1;
   const mm = raw / 100;
@@ -462,7 +608,10 @@ function resolveStrokeStyle(
   lineTypePatterns: Record<string, number[]>,
   layerLineTypes: Record<string, string>,
   layerLineWeights: Record<string, number>,
-  layerTransparency: Record<string, number>
+  layerTransparency: Record<string, number>,
+  layerColors: Record<string, string>,
+  globalLineTypeScale: number,
+  parentStroke?: StrokeStyle
 ): StrokeStyle {
   const rawType = String(
     entity.lineTypeName ?? entity.lineType ?? entity.ltype ?? "BYLAYER"
@@ -470,21 +619,50 @@ function resolveStrokeStyle(
   const lineTypeName = rawType === "BYLAYER" || rawType === "BYBLOCK"
     ? (layerLineTypes[layer] ?? "CONTINUOUS")
     : rawType;
-  const dash = lineTypePatterns[lineTypeName] ?? [];
+  const entityLineTypeScale = Number(
+    entity.lineTypeScale ?? entity.linetypeScale ?? entity.ltypeScale ?? entity.ltscale ?? 1
+  );
+  const lineTypeScale = Number.isFinite(entityLineTypeScale) && entityLineTypeScale > 0
+    ? entityLineTypeScale
+    : 1;
+  const baseDash = lineTypePatterns[lineTypeName] ?? [];
+  const dash = rawType === "BYBLOCK" && parentStroke
+    ? parentStroke.dash
+    : baseDash.map((value) => value * lineTypeScale * globalLineTypeScale);
 
   const rawLineWeight = Number(entity.lineWeight ?? entity.lineweight ?? -1);
-  const lineWeightValue = Number.isFinite(rawLineWeight) && rawLineWeight >= 0
-    ? rawLineWeight
-    : (layerLineWeights[layer] ?? -1);
-  const lineWidth = lineWeightToPixels(lineWeightValue);
+  let lineWeightValue = layerLineWeights[layer] ?? -1;
+  if (Number.isFinite(rawLineWeight)) {
+    if (rawLineWeight >= 0) lineWeightValue = rawLineWeight;
+  }
+  const lineWidth = rawLineWeight === -2 && parentStroke
+    ? parentStroke.lineWidth
+    : lineWeightToPixels(lineWeightValue);
 
   const rawTransparency = Number(entity.transparency ?? entity.alpha ?? Number.NaN);
   const transparencyValue = Number.isFinite(rawTransparency)
     ? rawTransparency
     : layerTransparency[layer];
-  const alpha = transparencyToAlpha(transparencyValue);
+  const alpha = Number.isFinite(transparencyValue)
+    ? transparencyToAlpha(transparencyValue)
+    : (parentStroke?.alpha ?? 1);
 
-  return { dash, lineWidth, alpha };
+  const trueColor = parseTrueColor(entity.trueColor ?? entity.color24 ?? entity.rgb);
+  const rawAci = Number(entity.colorNumber ?? entity.colorIndex ?? entity.color ?? entity.aci);
+  const defaultLayerColor = layerColors[layer] ?? aciColor(7);
+  let color = defaultLayerColor;
+  if (trueColor) {
+    color = trueColor;
+  } else if (Number.isFinite(rawAci)) {
+    if (rawAci === 0) color = parentStroke?.color ?? defaultLayerColor;
+    else if (rawAci === 256 || rawAci < 0) color = defaultLayerColor;
+    else if (rawAci > 0 && rawAci < 256) color = aciColor(rawAci);
+  }
+  if (rawType === "BYBLOCK" && parentStroke) {
+    color = parentStroke.color;
+  }
+
+  return { dash, lineWidth, alpha, color };
 }
 
 function normalizeEllipseAngles(
@@ -1097,6 +1275,9 @@ function extractHatchPattern(
     ? (entity.patternDefinitionLines as Record<string, unknown>[])
     : [];
   const solid = definitionLines.length === 0 && (solidByFlag || solidByPattern);
+  const patternScale = Math.max(Math.abs(Number(entity.patternScale ?? entity.scale ?? 1)), 0.1);
+  const patternAngleOffset = toRadians(Number(entity.patternAngle ?? entity.angle ?? 0));
+  const isDouble = Boolean(entity.patternDouble ?? entity.isDouble);
   const toDash = (def: Record<string, unknown>): number[] => {
     const rawDash = (Array.isArray(def.dashArray) && def.dashArray)
       || (Array.isArray(def.dashPattern) && def.dashPattern)
@@ -1111,42 +1292,53 @@ function extractHatchPattern(
       .filter((value) => Number.isFinite(value))
       .map((value) => {
         if (Math.abs(value) < 1e-9) return 0.1;
-        return Math.max(Math.abs(value), 0.1);
+        return Math.max(Math.abs(value) * patternScale, 0.1);
       });
     return dash.length >= 2 ? dash : [];
   };
 
-  const lines = definitionLines
-    .map((def) => {
-      const angle = toRadians(Number(def.angle ?? entity.patternAngle ?? entity.angle ?? 45));
-      const dirX = Math.cos(angle);
-      const dirY = -Math.sin(angle);
-      const nX = -dirY;
-      const nY = dirX;
-      const dx = Number(def.deltaX ?? def.offsetX ?? 0);
-      const dy = Number(def.deltaY ?? def.offsetY ?? 0);
-      const spacingFromDelta = Math.abs(dx * nX + dy * nY);
-      const spacingFromField = Number(def.spacing ?? entity.patternScale ?? entity.scale ?? 1);
-      const spacing = Math.max(Math.abs(spacingFromDelta || spacingFromField), 0.1);
+  const createPatternLine = (
+    def: Record<string, unknown>,
+    extraAngleOffset = 0
+  ): HatchPatternLine | null => {
+    const angle = toRadians(Number(def.angle ?? 45)) + patternAngleOffset + extraAngleOffset;
+    const dirX = Math.cos(angle);
+    const dirY = -Math.sin(angle);
+    const nX = -dirY;
+    const nY = dirX;
+    const dx = Number(def.deltaX ?? def.offsetX ?? 0) * patternScale;
+    const dy = Number(def.deltaY ?? def.offsetY ?? 0) * patternScale;
+    const spacingFromDelta = Math.abs(dx * nX + dy * nY);
+    const spacingFromField = Number(def.spacing ?? 1) * patternScale;
+    const spacing = Math.max(Math.abs(spacingFromDelta || spacingFromField), 0.1);
 
-      const originX = Number(def.x ?? def.originX ?? def.baseX ?? 0);
-      const originY = Number(def.y ?? def.originY ?? def.baseY ?? 0);
-      const dashOffset = Number(def.dashOffset ?? 0);
+    const originX = Number(def.x ?? def.originX ?? def.baseX ?? 0) * patternScale;
+    const originY = Number(def.y ?? def.originY ?? def.baseY ?? 0) * patternScale;
+    const dashOffset = Number(def.dashOffset ?? 0) * patternScale;
+    if (!Number.isFinite(spacing) || spacing <= 0) return null;
+    return {
+      angle,
+      spacing,
+      originX: Number.isFinite(originX) ? originX : 0,
+      originY: Number.isFinite(originY) ? originY : 0,
+      dash: toDash(def),
+      dashOffset: Number.isFinite(dashOffset) ? dashOffset : 0
+    };
+  };
 
-      return {
-        angle,
-        spacing,
-        originX: Number.isFinite(originX) ? originX : 0,
-        originY: Number.isFinite(originY) ? originY : 0,
-        dash: toDash(def),
-        dashOffset: Number.isFinite(dashOffset) ? dashOffset : 0
-      } satisfies HatchPatternLine;
-    })
-    .filter((line) => Number.isFinite(line.spacing) && line.spacing > 0);
+  const lines: HatchPatternLine[] = [];
+  for (const def of definitionLines) {
+    const line = createPatternLine(def, 0);
+    if (line) lines.push(line);
+    if (isDouble) {
+      const orthogonal = createPatternLine(def, Math.PI / 2);
+      if (orthogonal) lines.push(orthogonal);
+    }
+  }
 
   if (lines.length === 0) {
-    const angle = toRadians(Number(entity.patternAngle ?? entity.angle ?? 45));
-    const spacing = Math.max(Math.abs(Number(entity.patternScale ?? entity.scale ?? 1)), 0.1);
+    const angle = patternAngleOffset || toRadians(45);
+    const spacing = patternScale;
     lines.push({
       angle,
       spacing,
@@ -1372,6 +1564,7 @@ function parseDxf(content: string): ParsedDxf {
       entities?: unknown[];
       blocks?: Record<string, { entities?: unknown[]; }>;
       tables?: Record<string, unknown>;
+      header?: Record<string, unknown>;
     }
     | null
     | undefined;
@@ -1386,22 +1579,63 @@ function parseDxf(content: string): ParsedDxf {
   const layerLineTypes = extractLayerLineTypes(tables);
   const layerLineWeights = extractLayerLineWeights(tables);
   const layerTransparency = extractLayerTransparency(tables);
+  const layerColors = extractLayerColors(tables);
+  const globalLineTypeScale = getGlobalLineTypeScale(
+    result.header && typeof result.header === "object" ? result.header : undefined
+  );
 
   const primitives: Primitive[] = [];
   const layerCounts = new Map<string, number>();
+  const unsupportedEntities = new Set<string>();
+  const warningSet = new Set<string>();
 
   const pushPrimitive = (primitive: Primitive) => {
     primitives.push(primitive);
     layerCounts.set(primitive.layer, (layerCounts.get(primitive.layer) ?? 0) + 1);
+  };
+  const parseDimensionText = (
+    entity: Record<string, unknown>,
+    measurement: number
+  ): string | null => {
+    const raw = String(entity.text ?? "");
+    if (raw === " ") return null;
+    const precisionRaw = Number(entity.dimdec ?? entity.decimalPlaces ?? 2);
+    const precision = Math.min(
+      8,
+      Math.max(
+        0,
+        Math.floor(
+          Number.isFinite(precisionRaw)
+            ? precisionRaw
+            : 2
+        )
+      )
+    );
+    const factorRaw = Number(entity.dimlfac ?? entity.linearFactor ?? 1);
+    const factor = Number.isFinite(factorRaw) && Math.abs(factorRaw) > 1e-9 ? factorRaw : 1;
+    const valueText = (measurement * factor).toFixed(precision);
+    const postfix = String(entity.dimpost ?? entity.dimensionPostfix ?? "");
+    if (raw.trim().length === 0 || raw.includes("<>")) {
+      const template = raw.trim().length === 0 ? "<>" : raw;
+      return decodeCadTextEscapes(template.split("<>").join(valueText)).trim();
+    }
+    if (postfix.includes("<>")) {
+      return decodeCadTextEscapes(postfix.split("<>").join(valueText)).trim();
+    }
+    return decodeCadTextEscapes(raw).trim();
   };
 
   const expandEntity = (
     entity: Record<string, unknown>,
     matrix: Matrix2D,
     blockStack: string[],
-    depth: number
+    depth: number,
+    inheritedStroke?: StrokeStyle
   ) => {
-    if (depth > 10) return;
+    if (depth > 10) {
+      warningSet.add("Entity expansion depth exceeded (possible recursive block references).");
+      return;
+    }
 
     const type = String(entity.type ?? "");
     const layer = getLayerName(entity.layer);
@@ -1412,7 +1646,10 @@ function parseDxf(content: string): ParsedDxf {
       lineTypePatterns,
       layerLineTypes,
       layerLineWeights,
-      layerTransparency
+      layerTransparency,
+      layerColors,
+      globalLineTypeScale,
+      inheritedStroke
     );
 
     if (type === "LINE") {
@@ -1663,7 +1900,10 @@ function parseDxf(content: string): ParsedDxf {
       const blockName = String(entity.name ?? entity.block ?? "").trim();
       if (!blockName) return;
       const block = blocks[blockName];
-      if (!block || !Array.isArray(block.entities)) return;
+      if (!block || !Array.isArray(block.entities)) {
+        warningSet.add(`INSERT block not found: ${blockName}`);
+        return;
+      }
       if (blockStack.includes(blockName)) return;
 
       const insertion = pickPoint(entity) ?? { x: 0, y: 0 };
@@ -1685,14 +1925,14 @@ function parseDxf(content: string): ParsedDxf {
           const arrayOffset = translationMatrix(column * columnSpacing, row * rowSpacing);
           const next = multiplyMatrix(matrix, multiplyMatrix(local, arrayOffset));
           for (const child of block.entities as Record<string, unknown>[]) {
-            expandEntity(child, next, [...blockStack, blockName], depth + 1);
+            expandEntity(child, next, [...blockStack, blockName], depth + 1, stroke);
           }
 
           const attribs = Array.isArray(entity.attribs)
             ? (entity.attribs as Record<string, unknown>[])
             : [];
           for (const attrib of attribs) {
-            expandEntity(attrib, next, blockStack, depth + 1);
+            expandEntity(attrib, next, blockStack, depth + 1, stroke);
           }
         }
       }
@@ -1703,24 +1943,52 @@ function parseDxf(content: string): ParsedDxf {
       const blockName = String(entity.block ?? "").trim();
       if (blockName && blocks[blockName] && Array.isArray(blocks[blockName].entities)) {
         for (const child of blocks[blockName].entities as Record<string, unknown>[]) {
-          expandEntity(child, matrix, [...blockStack, blockName], depth + 1);
+          expandEntity(child, matrix, [...blockStack, blockName], depth + 1, stroke);
         }
       }
       const defA = entity.definitionPoint as Point | undefined;
       const defB = entity.definitionPoint2 as Point | undefined;
+      let measurement = 0;
       if (defA && defB) {
+        const mappedA = applyPoint(matrix, defA);
+        const mappedB = applyPoint(matrix, defB);
         pushPrimitive({
           kind: "line",
           layer,
-          start: applyPoint(matrix, defA),
-          end: applyPoint(matrix, defB),
+          start: mappedA,
+          end: mappedB,
           stroke
         });
+
+        measurement = Math.hypot(defB.x - defA.x, defB.y - defA.y);
+        const viewLen = Math.hypot(mappedB.x - mappedA.x, mappedB.y - mappedA.y);
+        if (viewLen > 1e-9) {
+          const ux = (mappedB.x - mappedA.x) / viewLen;
+          const uy = (mappedB.y - mappedA.y) / viewLen;
+          const arrowSize = getLeaderArrowSize(entity, matrix);
+          pushPrimitive({
+            kind: "arrow",
+            layer,
+            tip: mappedA,
+            tail: { x: mappedA.x + ux * arrowSize, y: mappedA.y + uy * arrowSize },
+            size: arrowSize,
+            stroke
+          });
+          pushPrimitive({
+            kind: "arrow",
+            layer,
+            tip: mappedB,
+            tail: { x: mappedB.x - ux * arrowSize, y: mappedB.y - uy * arrowSize },
+            size: arrowSize,
+            stroke
+          });
+        }
       }
 
-      const dimText = String(entity.text ?? "").trim();
-      if (dimText.length > 0 && dimText !== "<>") {
-        const position = pickPoint(entity);
+      const dimText = parseDimensionText(entity, measurement);
+      if (dimText && dimText.length > 0) {
+        const position = pickPoint(entity)
+          ?? ((defA && defB) ? { x: (defA.x + defB.x) / 2, y: (defA.y + defB.y) / 2 } : null);
         if (position) {
           const scaleX = Math.hypot(matrix.a, matrix.b);
           const scaleY = Math.hypot(matrix.c, matrix.d);
@@ -1746,6 +2014,10 @@ function parseDxf(content: string): ParsedDxf {
       }
       return;
     }
+
+    if (type.length > 0) {
+      unsupportedEntities.add(type);
+    }
   };
 
   for (const entity of entities as Record<string, unknown>[]) {
@@ -1764,11 +2036,20 @@ function parseDxf(content: string): ParsedDxf {
       lineTypePatterns,
       layerLineTypes,
       layerLineWeights,
-      layerTransparency
+      layerTransparency,
+      layerColors,
+      globalLineTypeScale
     );
   }
 
-  return { primitives, bounds, layers, layerStroke };
+  return {
+    primitives,
+    bounds,
+    layers,
+    layerStroke,
+    unsupportedEntities: Array.from(unsupportedEntities).sort(),
+    renderWarnings: Array.from(warningSet)
+  };
 }
 
 function DxfCanvasViewer({ content }: { content: string; }) {
@@ -1897,7 +2178,7 @@ function DxfCanvasViewer({ content }: { content: string; }) {
 
     for (const primitive of hatchPrimitives) {
       ctx.save();
-      const color = layerColor(primitive.layer);
+      const color = parsed.layerStroke[primitive.layer]?.color ?? layerColor(primitive.layer);
       ctx.fillStyle = color;
       ctx.strokeStyle = color;
       ctx.lineWidth = 1;
@@ -1928,7 +2209,7 @@ function DxfCanvasViewer({ content }: { content: string; }) {
 
     for (const primitive of facePrimitives) {
       if (primitive.points.length < 3) continue;
-      const color = layerColor(primitive.layer);
+      const color = parsed.layerStroke[primitive.layer]?.color ?? layerColor(primitive.layer);
       ctx.beginPath();
       const first = map(primitive.points[0]);
       ctx.moveTo(first.x, first.y);
@@ -1949,10 +2230,10 @@ function DxfCanvasViewer({ content }: { content: string; }) {
 
     for (const primitive of strokePrimitives) {
       ctx.beginPath();
-      ctx.strokeStyle = layerColor(primitive.layer);
       const layerStroke = parsed.layerStroke[primitive.layer]
-        ?? { dash: [], lineWidth: 1.1, alpha: 1 };
+        ?? { dash: [], lineWidth: 1.1, alpha: 1, color: aciColor(7) };
       const stroke = "stroke" in primitive ? primitive.stroke : layerStroke;
+      ctx.strokeStyle = stroke.color;
       ctx.lineWidth = stroke.lineWidth;
       const dash = stroke.dash;
       ctx.setLineDash(
@@ -2006,7 +2287,7 @@ function DxfCanvasViewer({ content }: { content: string; }) {
         ctx.lineTo(left.x, left.y);
         ctx.lineTo(right.x, right.y);
         ctx.closePath();
-        ctx.fillStyle = layerColor(primitive.layer);
+        ctx.fillStyle = stroke.color;
         ctx.globalAlpha = stroke.alpha;
         ctx.fill();
         ctx.globalAlpha = 1;
@@ -2102,7 +2383,7 @@ function DxfCanvasViewer({ content }: { content: string; }) {
           ctx.lineTo(p.x + half, p.y - half);
         }
         if (drawDot) {
-          ctx.fillStyle = layerColor(primitive.layer);
+          ctx.fillStyle = stroke.color;
           ctx.beginPath();
           ctx.arc(p.x, p.y, Math.max(1.5, half / 2), 0, Math.PI * 2);
           ctx.fill();
@@ -2131,7 +2412,7 @@ function DxfCanvasViewer({ content }: { content: string; }) {
         ctx.translate(p.x, p.y);
         ctx.rotate(-primitive.rotation);
         ctx.scale(primitive.widthFactor, 1);
-        ctx.fillStyle = layerColor(primitive.layer);
+        ctx.fillStyle = stroke.color;
         ctx.font = `${fontSize}px "Segoe UI", sans-serif`;
         ctx.textBaseline = primitive.baseline;
         ctx.textAlign = primitive.align;
@@ -2397,7 +2678,7 @@ function DxfCanvasViewer({ content }: { content: string; }) {
                         width: 10,
                         height: 10,
                         borderRadius: "50%",
-                        background: layerColor(layer.name)
+                        background: parsed.layerStroke[layer.name]?.color ?? layerColor(layer.name)
                       }}
                     />
                     <span
@@ -2432,6 +2713,44 @@ function DxfCanvasViewer({ content }: { content: string; }) {
             }}
           >
             No entities are visible. Enable at least one layer.
+          </p>
+        )
+        : null}
+      {parsed.renderWarnings.length > 0
+        ? (
+          <p
+            style={{
+              position: "absolute",
+              left: 8,
+              bottom: parsed.unsupportedEntities.length > 0 ? 76 : 42,
+              color: "var(--text-secondary)",
+              fontSize: 12,
+              padding: "4px 8px",
+              border: "1px solid var(--border-color)",
+              borderRadius: 6,
+              background: "color-mix(in srgb, var(--bg-main) 92%, transparent)"
+            }}
+          >
+            Warnings: {parsed.renderWarnings.join(" | ")}
+          </p>
+        )
+        : null}
+      {parsed.unsupportedEntities.length > 0
+        ? (
+          <p
+            style={{
+              position: "absolute",
+              left: 8,
+              bottom: 42,
+              color: "var(--text-secondary)",
+              fontSize: 12,
+              padding: "4px 8px",
+              border: "1px solid var(--border-color)",
+              borderRadius: 6,
+              background: "color-mix(in srgb, var(--bg-main) 92%, transparent)"
+            }}
+          >
+            Unsupported entities: {parsed.unsupportedEntities.join(", ")}
           </p>
         )
         : null}
