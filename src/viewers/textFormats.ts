@@ -44,6 +44,7 @@ export const textExtensions = [
   "properties",
   "editorconfig",
   "gitignore",
+  "jsonl",
   "ndjson"
 ];
 

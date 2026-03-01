@@ -12,6 +12,13 @@ interface FileTreeItemProps {
   depth: number;
   revealTargetPath?: string | null;
   revealToken?: number;
+  contextHighlightPath?: string | null;
+  onItemContextMenu: (payload: {
+    entryPath: string;
+    entryName: string;
+    clientX: number;
+    clientY: number;
+  }) => void;
 }
 
 function normalizePath(path: string): string {
@@ -30,7 +37,9 @@ export function FileTreeItem({
   entry,
   depth,
   revealTargetPath,
-  revealToken
+  revealToken,
+  contextHighlightPath,
+  onItemContextMenu
 }: FileTreeItemProps) {
   const [expanded, setExpanded] = useState(depth < 1);
   const { activeWorkspaceId } = useAppState();
@@ -45,6 +54,7 @@ export function FileTreeItem({
 
   const { selectedFilePath } = activeWorkspace;
   const isSelected = selectedFilePath === entry.path;
+  const isContextHighlighted = contextHighlightPath === entry.path;
   const isRevealTarget = !!revealTargetPath && entry.path === revealTargetPath;
   const fileIcon = resolveFileIcon(entry.path);
   // 12px base + depth * 16px indent (4px grid)
@@ -110,15 +120,32 @@ export function FileTreeItem({
           cursor: "pointer",
           userSelect: "none",
           fontSize: "var(--font-ui)",
-          backgroundColor: isSelected ? "var(--bg-selected)" : "transparent",
+          backgroundColor: isSelected
+            ? "var(--bg-selected)"
+            : isContextHighlighted
+            ? "var(--bg-hover)"
+            : "transparent",
           color: "var(--text-primary)"
         }}
         onClick={handleClick}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          onItemContextMenu({
+            entryPath: entry.path,
+            entryName: entry.name,
+            clientX: event.clientX,
+            clientY: event.clientY
+          });
+        }}
         onMouseEnter={(e) => {
-          if (!isSelected) e.currentTarget.style.backgroundColor = "var(--bg-hover)";
+          if (!isSelected && !isContextHighlighted) {
+            e.currentTarget.style.backgroundColor = "var(--bg-hover)";
+          }
         }}
         onMouseLeave={(e) => {
-          if (!isSelected) e.currentTarget.style.backgroundColor = "transparent";
+          if (!isSelected && !isContextHighlighted) {
+            e.currentTarget.style.backgroundColor = "transparent";
+          }
         }}
       >
         {entry.is_dir
@@ -159,6 +186,8 @@ export function FileTreeItem({
           depth={depth + 1}
           revealTargetPath={revealTargetPath}
           revealToken={revealToken}
+          contextHighlightPath={contextHighlightPath}
+          onItemContextMenu={onItemContextMenu}
         />
       )}
     </div>

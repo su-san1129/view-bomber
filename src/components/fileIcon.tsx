@@ -15,7 +15,19 @@ export interface FileIconMeta {
   color: string;
 }
 
-const imageExtensions = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"]);
+const imageExtensions = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "svg",
+  "bmp",
+  "ico",
+  "avif",
+  "tif",
+  "tiff"
+]);
 const codeLikeExtensions = new Set([
   "md",
   "markdown",
@@ -31,7 +43,14 @@ export function resolveFileIcon(path: string): FileIconMeta {
     return { Icon: FileJson, color: "#cb8cff" };
   }
 
-  if (extension === "csv" || extension === "tsv" || extension === "xlsx" || extension === "xlsm") {
+  if (
+    extension === "csv"
+    || extension === "tsv"
+    || extension === "xlsx"
+    || extension === "xlsm"
+    || extension === "xls"
+    || extension === "ods"
+  ) {
     return { Icon: FileSpreadsheet, color: "#7fc97f" };
   }
 

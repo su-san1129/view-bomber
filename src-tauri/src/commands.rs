@@ -9,6 +9,8 @@ use serde::Serialize;
 use std::fs;
 use std::io::{BufRead, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use std::process::Command;
+use tauri::{AppHandle, Manager};
 use walkdir::WalkDir;
 use zip::ZipArchive;
 
@@ -142,6 +144,7 @@ fn text_extensions() -> Vec<String> {
         "properties".to_string(),
         "editorconfig".to_string(),
         "gitignore".to_string(),
+        "jsonl".to_string(),
         "ndjson".to_string(),
     ]
 }
@@ -162,7 +165,12 @@ fn text_special_file_names() -> Vec<String> {
 }
 
 fn spreadsheet_extensions() -> Vec<String> {
-    vec!["xlsx".to_string(), "xlsm".to_string()]
+    vec![
+        "xlsx".to_string(),
+        "xlsm".to_string(),
+        "xls".to_string(),
+        "ods".to_string(),
+    ]
 }
 
 fn document_extensions() -> Vec<String> {
@@ -252,6 +260,8 @@ fn supported_file_types() -> Vec<SupportedFileType> {
                 "bmp".to_string(),
                 "ico".to_string(),
                 "avif".to_string(),
+                "tif".to_string(),
+                "tiff".to_string(),
             ],
             searchable: false,
         },
@@ -355,6 +365,82 @@ fn has_extension(path: &Path, expected_extension: &str) -> bool {
         .and_then(|ext| ext.to_str())
         .map(|ext| ext.eq_ignore_ascii_case(expected_extension))
         .unwrap_or(false)
+}
+
+fn platform_bin_dir_name() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "macos"
+    } else {
+        "linux"
+    }
+}
+
+fn pandoc_binary_name() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "pandoc.exe"
+    } else {
+        "pandoc"
+    }
+}
+
+fn tectonic_binary_name() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "tectonic.exe"
+    } else {
+        "tectonic"
+    }
+}
+
+fn resolve_bundled_binary(app: &AppHandle, binary_name: &str) -> Result<PathBuf, String> {
+    let platform_dir = platform_bin_dir_name();
+    let mut candidates: Vec<PathBuf> = Vec::new();
+
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        candidates.push(
+            resource_dir
+                .join("bin")
+                .join(platform_dir)
+                .join(binary_name),
+        );
+    }
+
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.push(
+            cwd.join("resources")
+                .join("bin")
+                .join(platform_dir)
+                .join(binary_name),
+        );
+        candidates.push(
+            cwd.join("..")
+                .join("resources")
+                .join("bin")
+                .join(platform_dir)
+                .join(binary_name),
+        );
+    }
+
+    for candidate in candidates {
+        if candidate.is_file() {
+            return candidate
+                .canonicalize()
+                .map_err(|e| format!("Failed to resolve binary path: {}", e));
+        }
+    }
+
+    Err(format!(
+        "Bundled binary not found: {} (platform: {})",
+        binary_name, platform_dir
+    ))
+}
+
+fn ensure_pdf_extension(path: &Path) -> PathBuf {
+    if has_extension(path, "pdf") {
+        return path.to_path_buf();
+    }
+    path.with_extension("pdf")
 }
 
 fn parse_delimiter_hint(delimiter_hint: Option<String>) -> Option<u8> {
@@ -1052,6 +1138,111 @@ pub async fn read_file_content(path: String) -> Result<FileContentData, String> 
 }
 
 #[tauri::command]
+pub async fn open_in_file_manager(path: String) -> Result<(), String> {
+    let input_path = Path::new(&path);
+    if !input_path.exists() {
+        return Err(format!("Path not found: {}", path));
+    }
+
+    let folder_path = if input_path.is_dir() {
+        input_path.to_path_buf()
+    } else if input_path.is_file() {
+        input_path
+            .parent()
+            .ok_or_else(|| format!("Failed to resolve parent directory: {}", path))?
+            .to_path_buf()
+    } else {
+        return Err(format!("Unsupported path type: {}", path));
+    };
+
+    let status = if cfg!(target_os = "macos") {
+        Command::new("open")
+            .arg(&folder_path)
+            .status()
+            .map_err(|e| format!("Failed to launch Finder: {}", e))?
+    } else if cfg!(target_os = "windows") {
+        Command::new("explorer")
+            .arg(&folder_path)
+            .status()
+            .map_err(|e| format!("Failed to launch Explorer: {}", e))?
+    } else {
+        Command::new("xdg-open")
+            .arg(&folder_path)
+            .status()
+            .map_err(|e| format!("Failed to launch file manager: {}", e))?
+    };
+
+    if !status.success() {
+        return Err(format!(
+            "File manager command failed for path: {}",
+            folder_path.to_string_lossy()
+        ));
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn export_markdown_to_pdf(
+    app: AppHandle,
+    input_path: String,
+    output_path: String,
+) -> Result<String, String> {
+    let markdown_path = Path::new(&input_path);
+    if !markdown_path.exists() {
+        return Err(format!("File not found: {}", input_path));
+    }
+    if !markdown_path.is_file() {
+        return Err(format!("Not a file: {}", input_path));
+    }
+    if !has_extension(markdown_path, "md") && !has_extension(markdown_path, "markdown") {
+        return Err("Markdownファイル（.md/.markdown）のみ書き出し可能です".to_string());
+    }
+
+    let target_pdf_path = ensure_pdf_extension(Path::new(&output_path));
+    let output_parent = target_pdf_path.parent().unwrap_or(Path::new("."));
+    if !output_parent.exists() {
+        return Err(format!(
+            "Output directory not found: {}",
+            output_parent.to_string_lossy()
+        ));
+    }
+    if !output_parent.is_dir() {
+        return Err(format!(
+            "Output path parent is not a directory: {}",
+            output_parent.to_string_lossy()
+        ));
+    }
+
+    let pandoc_path = resolve_bundled_binary(&app, pandoc_binary_name())?;
+    let tectonic_path = resolve_bundled_binary(&app, tectonic_binary_name())?;
+
+    let output = Command::new(&pandoc_path)
+        .arg("--from")
+        .arg("gfm")
+        .arg("--pdf-engine")
+        .arg(&tectonic_path)
+        .arg("--variable")
+        .arg("papersize:a4")
+        .arg("--variable")
+        .arg("geometry:margin=25mm")
+        .arg("-o")
+        .arg(&target_pdf_path)
+        .arg(markdown_path)
+        .output()
+        .map_err(|e| format!("Failed to execute pandoc: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let details = if !stderr.is_empty() { stderr } else { stdout };
+        return Err(format!("Failed to export markdown to PDF: {}", details));
+    }
+
+    Ok(target_pdf_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 pub async fn read_xlsx(path: String) -> Result<XlsxData, String> {
     let file_path = Path::new(&path);
     if !file_path.exists() {
@@ -1060,8 +1251,8 @@ pub async fn read_xlsx(path: String) -> Result<XlsxData, String> {
     if !file_path.is_file() {
         return Err(format!("Not a file: {}", path));
     }
-    if !has_extension(file_path, "xlsx") && !has_extension(file_path, "xlsm") {
-        return Err("Target file is not .xlsx or .xlsm".to_string());
+    if !is_extension_in(file_path, &spreadsheet_extensions()) {
+        return Err("Target file is not a spreadsheet file (.xlsx/.xlsm/.xls/.ods)".to_string());
     }
 
     parse_xlsx(file_path)
@@ -1297,7 +1488,7 @@ pub async fn search_files(
         })
     {
         let path = entry.path();
-        let file_matches = if has_extension(path, "xlsx") || has_extension(path, "xlsm") {
+        let file_matches = if is_extension_in(path, &spreadsheet_extensions()) {
             search_xlsx_file(path, &query, &query_lower, case_sensitive)
         } else if has_extension(path, "docx") {
             search_docx_file(path, &query, &query_lower, case_sensitive)
@@ -1336,6 +1527,7 @@ mod tests {
         assert!(contains_extension(&extensions, "log"));
         assert!(contains_extension(&extensions, "yaml"));
         assert!(contains_extension(&extensions, "ts"));
+        assert!(contains_extension(&extensions, "jsonl"));
     }
 
     #[test]
@@ -1347,6 +1539,8 @@ mod tests {
         assert!(contains_extension(&extensions, "geojson"));
         assert!(contains_extension(&extensions, "xlsx"));
         assert!(contains_extension(&extensions, "xlsm"));
+        assert!(contains_extension(&extensions, "xls"));
+        assert!(contains_extension(&extensions, "ods"));
         assert!(contains_extension(&extensions, "docx"));
         assert!(!contains_extension(&extensions, "png"));
     }

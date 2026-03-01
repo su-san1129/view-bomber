@@ -12,6 +12,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "init": "bun install && bun run prepare:pdf-tools",
+    "prepare:pdf-tools": "bun scripts/prepare-pdf-tools.mjs",
     "viewb": "bun scripts/viewb.mjs",
     "format": "dprint fmt",
     "format:check": "dprint check",

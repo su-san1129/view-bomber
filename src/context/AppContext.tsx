@@ -182,7 +182,7 @@ const initialState: AppState = {
   supportedFileTypes: [
     { id: "md", label: "Markdown", extensions: ["md", "markdown"], searchable: true },
     { id: "html", label: "HTML", extensions: ["html", "htm"], searchable: true },
-    { id: "json", label: "JSON", extensions: ["json"], searchable: true },
+    { id: "json", label: "JSON", extensions: ["json", "geojson"], searchable: true },
     { id: "csv", label: "CSV", extensions: ["csv", "tsv"], searchable: true },
     { id: "dxf", label: "DXF", extensions: ["dxf"], searchable: true },
     {
@@ -191,14 +191,19 @@ const initialState: AppState = {
       extensions: textExtensions,
       searchable: true
     },
-    { id: "spreadsheet", label: "Spreadsheet", extensions: ["xlsx"], searchable: true },
+    {
+      id: "spreadsheet",
+      label: "Spreadsheet",
+      extensions: ["xlsx", "xlsm", "xls", "ods"],
+      searchable: true
+    },
     { id: "document", label: "Document", extensions: ["docx"], searchable: true },
     { id: "parquet", label: "Parquet", extensions: ["parquet"], searchable: false },
     { id: "duckdb", label: "DuckDB", extensions: ["duckdb", "ddb"], searchable: false },
     {
       id: "image",
       label: "Image",
-      extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"],
+      extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif", "tif", "tiff"],
       searchable: false
     },
     { id: "pdf", label: "PDF", extensions: ["pdf"], searchable: false }

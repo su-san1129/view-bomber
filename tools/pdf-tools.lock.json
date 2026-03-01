@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "tools": {
+    "pandoc": {
+      "version": "3.8.2",
+      "targets": {
+        "macos-x64": {
+          "url": "https://github.com/jgm/pandoc/releases/download/3.8.2/pandoc-3.8.2-x86_64-apple-darwin.tar.gz",
+          "sha256": "0ecf97dfcba6e10fef4adcca9f105f95f2f6993fced4fcb18f8f0f4dcb2c7f6d",
+          "archiveType": "tar.gz"
+        },
+        "macos-arm64": {
+          "url": "https://github.com/jgm/pandoc/releases/download/3.8.2/pandoc-3.8.2-arm64-macOS.zip",
+          "sha256": "02503ee9158fe65442722d8818c37833ed4766d970ce0290b69e08d051f6628d",
+          "archiveType": "zip"
+        },
+        "linux-x64": {
+          "url": "https://github.com/jgm/pandoc/releases/download/3.8.2/pandoc-3.8.2-linux-amd64.tar.gz",
+          "sha256": "d6d43a85f9c4f7fd74d22d5ec91653f9159825be6fef23d866d0e404fefe331f",
+          "archiveType": "tar.gz"
+        },
+        "linux-arm64": {
+          "url": "https://github.com/jgm/pandoc/releases/download/3.8.2/pandoc-3.8.2-linux-arm64.tar.gz",
+          "sha256": "a7bc4850930e6dc6ec6af03cd35d4d00e0f65f8ad04f1f0a7140ca64ed53f225",
+          "archiveType": "tar.gz"
+        },
+        "windows-x64": {
+          "url": "https://github.com/jgm/pandoc/releases/download/3.8.2/pandoc-3.8.2-windows-x86_64.zip",
+          "sha256": "119f9948af036cb27b6e9127eace4e2146f7f17f94ecfb86ee8f3e5f6ec15ad8",
+          "archiveType": "zip"
+        }
+      }
+    },
+    "tectonic": {
+      "version": "0.15.0",
+      "targets": {
+        "macos-x64": {
+          "url": "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.15.0/tectonic-0.15.0-x86_64-apple-darwin.tar.gz",
+          "sha256": "db825877bc7f278fc1ad8343f372ecf4e6da9ad2e0f3f5ef89ef15a2ecf16f98",
+          "archiveType": "tar.gz"
+        },
+        "macos-arm64": {
+          "url": "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.15.0/tectonic-0.15.0-aarch64-apple-darwin.tar.gz",
+          "sha256": "24bd46566fa30d41101848405e9cbc4645edb92d8f857c9d21262174fb70cd33",
+          "archiveType": "tar.gz"
+        },
+        "linux-x64": {
+          "url": "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.15.0/tectonic-0.15.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "f47fdf0d16dc16acc9b2784b8708166c36a18153d554ac8f84f542624c62e245",
+          "archiveType": "tar.gz"
+        },
+        "linux-arm64": {
+          "url": "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.15.0/tectonic-0.15.0-aarch64-unknown-linux-gnu.tar.gz",
+          "sha256": "80f9fbf10d1a5ff545cba37faac62fbdcfd5f7d3e8ac7a16fd6ec5a82c31abc6",
+          "archiveType": "tar.gz"
+        },
+        "windows-x64": {
+          "url": "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%400.15.0/tectonic-0.15.0-x86_64-pc-windows-msvc.zip",
+          "sha256": "793a34eca53d7dd87797ef4bf45fe8f0336f3a74ca0ec7467d63836793efe8a4",
+          "archiveType": "zip"
+        }
+      }
+    }
+  }
+}

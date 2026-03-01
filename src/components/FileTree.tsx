@@ -6,9 +6,23 @@ interface FileTreeProps {
   depth: number;
   revealTargetPath?: string | null;
   revealToken?: number;
+  contextHighlightPath?: string | null;
+  onItemContextMenu: (payload: {
+    entryPath: string;
+    entryName: string;
+    clientX: number;
+    clientY: number;
+  }) => void;
 }
 
-export function FileTree({ entries, depth, revealTargetPath, revealToken }: FileTreeProps) {
+export function FileTree({
+  entries,
+  depth,
+  revealTargetPath,
+  revealToken,
+  contextHighlightPath,
+  onItemContextMenu
+}: FileTreeProps) {
   return (
     <div>
       {entries.map((entry) => (
@@ -18,6 +32,8 @@ export function FileTree({ entries, depth, revealTargetPath, revealToken }: File
           depth={depth}
           revealTargetPath={revealTargetPath}
           revealToken={revealToken}
+          contextHighlightPath={contextHighlightPath}
+          onItemContextMenu={onItemContextMenu}
         />
       ))}
     </div>

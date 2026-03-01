@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "bun run prepare:pdf-tools && bun run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -27,7 +27,8 @@
     "resources": [
       "../LICENSE",
       "../THIRD_PARTY_NOTICES.md",
-      "../APACHE_NOTICES.md"
+      "../APACHE_NOTICES.md",
+      "../resources/bin"
     ],
     "icon": [
       "icons/32x32.png",

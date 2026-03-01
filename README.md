@@ -23,13 +23,16 @@ multiple file types from a folder tree with fast preview, search, and format-spe
   `.sh`, `.bash`, `.zsh`, `.fish`, `.ps1`, `.bat`, `.cmd`, `.c`, `.h`, `.cpp`, `.hpp`, `.py`, `.rb`,
   `.go`, `.rs`, `.java`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.css`, `.scss`, `.less`,
   `.swift`, `.kt`, `.dart`, `.lua`, `.php`, `.r`, `.properties`, `.editorconfig`, `.gitignore`,
-  `.ndjson`, plus special names `Dockerfile`, `Makefile`, `GNUmakefile`, `.env*`, `.gitignore`,
-  `.editorconfig` (line numbers + wrap toggle + syntax highlight + large-file partial render)
-- Spreadsheet: `.xlsx`, `.xlsm` (sheet tabs + table preview)
+  `.jsonl`, `.ndjson`, plus special names `Dockerfile`, `Makefile`, `GNUmakefile`, `.env*`,
+  `.gitignore`, `.editorconfig` (line numbers + wrap toggle + syntax highlight + large-file partial
+  render)
+- Spreadsheet: `.xlsx`, `.xlsm`, `.xls`, `.ods` (sheet tabs + table preview)
 - Document: `.docx` (paragraph text extraction preview)
 - DuckDB: `.duckdb`, `.ddb` (table list + preview)
-- Images: `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`, `.bmp`, `.ico`, `.avif`
+- Images: `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`, `.bmp`, `.ico`, `.avif`, `.tif`, `.tiff`
 - PDF: `.pdf` (embedded `pdf.js` viewer with continuous vertical scroll and zoom)
+- Markdown export: `.md` / `.markdown` -> `.pdf` (A4, 25mm margin, via bundled `pandoc` +
+  `tectonic`)
 
 ## Requirements
 
@@ -42,13 +45,13 @@ multiple file types from a folder tree with fast preview, search, and format-spe
 
 ```bash
 mise install
-bun install
+mise run init
 ```
 
 ## Run the App
 
 ```bash
-bun run tauri dev
+mise run tauri-dev
 ```
 
 ## Open From CLI (`viewb`)
@@ -150,6 +153,15 @@ Hook entrypoint:
 - Make sure you are on the current code path that uses `pdf.js` byte loading via Tauri FS.
 - If you see permission errors for file reads, verify Tauri FS capability scopes in:
   - `src-tauri/capabilities/default.json`
+
+### Markdown export to PDF fails
+
+- `tauri build` auto-provisions bundled binaries via `bun run prepare:pdf-tools`.
+- Manual run is available: `bun run prepare:pdf-tools`.
+- If auto-provisioning fails, check:
+  - network access to GitHub Releases
+  - lock file values in `tools/pdf-tools.lock.json` (URL / SHA-256)
+- See `docs/export-pdf.md` for expected layout and behavior.
 
 ### App icon changes are not visible in dev
 

@@ -22,6 +22,9 @@ function getMimeType(filePath: string): string {
       return "image/x-icon";
     case "avif":
       return "image/avif";
+    case "tif":
+    case "tiff":
+      return "image/tiff";
     default:
       return "application/octet-stream";
   }
@@ -116,7 +119,7 @@ function ImageViewer({ filePath }: { filePath: string; }) {
 export const imageViewerPlugin: ViewerPlugin = {
   id: "image",
   label: "Image",
-  extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"],
+  extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif", "tif", "tiff"],
   supportsFind: false,
   render({ filePath }) {
     return <ImageViewer filePath={filePath} />;

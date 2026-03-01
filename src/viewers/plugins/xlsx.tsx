@@ -118,7 +118,7 @@ function XlsxViewer(
 export const xlsxViewerPlugin: ViewerPlugin = {
   id: "xlsx",
   label: "Spreadsheet",
-  extensions: ["xlsx", "xlsm"],
+  extensions: ["xlsx", "xlsm", "xls", "ods"],
   supportsFind: true,
   render({ filePath, contentRef }) {
     return <XlsxViewer filePath={filePath} contentRef={contentRef} />;
