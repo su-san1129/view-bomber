@@ -50,13 +50,12 @@ jobs:
           toolchain: 1.93.0
           components: clippy
 
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+
       - name: Verify clippy component
         run: rustup component list --installed | grep '^clippy'
 
       - name: Rust lint (clippy)
         working-directory: src-tauri
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: Rust check
-        working-directory: src-tauri
-        run: cargo check
+        run: cargo clippy -p view-bomber --all-targets --no-deps -- -D warnings

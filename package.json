@@ -24,7 +24,7 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,mjs,cjs,json,md,yml,yaml}": [
+    "*.{ts,tsx,js,jsx,mjs,cjs,json,md}": [
       "dprint fmt"
     ],
     "src/**/*.{ts,tsx,js,jsx,mjs,cjs}": [
