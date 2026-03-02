@@ -70,6 +70,15 @@ export interface GeoJsonTileData {
   lodMode: "low" | "medium" | "high";
 }
 
+export interface GeoJsonPrepareProgressData {
+  requestId: string;
+  stage: "reading" | "parsing" | "indexing" | "finalizing" | "done" | "error";
+  percent: number;
+  message: string;
+  totalFeatures?: number;
+  processedFeatures?: number;
+}
+
 export interface FileContentData {
   content: string;
   encoding: string;

@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use walkdir::WalkDir;
 use zip::ZipArchive;
 
@@ -152,6 +152,17 @@ pub struct GeoJsonTileData {
     pub fallback_features: usize,
     pub lod_tolerance: f64,
     pub lod_mode: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GeoJsonPrepareProgressPayload {
+    request_id: String,
+    stage: String,
+    percent: u8,
+    message: String,
+    total_features: Option<usize>,
+    processed_features: Option<usize>,
 }
 
 #[derive(Default)]
@@ -2032,7 +2043,11 @@ fn decode_text_bytes(bytes: &[u8]) -> Result<String, String> {
 
 fn is_finite_number(value: &Value) -> Option<f64> {
     let num = value.as_f64()?;
-    if num.is_finite() { Some(num) } else { None }
+    if num.is_finite() {
+        Some(num)
+    } else {
+        None
+    }
 }
 
 fn merge_bbox(base: Option<BBox>, next: Option<BBox>) -> Option<BBox> {
@@ -2091,7 +2106,13 @@ fn geometry_bbox(geometry: &Value) -> Option<BBox> {
     bbox_from_coordinates(obj.get("coordinates")?)
 }
 
-fn extract_indexed_features(root: Value) -> Result<(Vec<IndexedFeature>, Option<[f64; 4]>), String> {
+fn extract_indexed_features<F>(
+    root: Value,
+    mut on_progress: F,
+) -> Result<(Vec<IndexedFeature>, Option<[f64; 4]>), String>
+where
+    F: FnMut(usize, usize),
+{
     let mut indexed_features = Vec::new();
     let mut all_bounds: Option<BBox> = None;
 
@@ -2119,12 +2140,15 @@ fn extract_indexed_features(root: Value) -> Result<(Vec<IndexedFeature>, Option<
                 .get("features")
                 .and_then(|v| v.as_array())
                 .ok_or_else(|| "FeatureCollection must include features array".to_string())?;
-            for feature in features {
+            let total = features.len();
+            for (index, feature) in features.iter().enumerate() {
                 push_feature(feature.clone(), &mut indexed_features, &mut all_bounds);
+                on_progress(index + 1, total);
             }
         }
         "Feature" => {
             push_feature(root, &mut indexed_features, &mut all_bounds);
+            on_progress(1, 1);
         }
         _ => {
             let feature = serde_json::json!({
@@ -2133,11 +2157,35 @@ fn extract_indexed_features(root: Value) -> Result<(Vec<IndexedFeature>, Option<
                 "geometry": root
             });
             push_feature(feature, &mut indexed_features, &mut all_bounds);
+            on_progress(1, 1);
         }
     }
 
     let bounds = all_bounds.map(|b| [b.min_lng, b.min_lat, b.max_lng, b.max_lat]);
     Ok((indexed_features, bounds))
+}
+
+fn emit_geojson_prepare_progress(
+    app: &AppHandle,
+    progress_request_id: Option<&str>,
+    stage: &str,
+    percent: u8,
+    message: String,
+    total_features: Option<usize>,
+    processed_features: Option<usize>,
+) {
+    let Some(request_id) = progress_request_id else {
+        return;
+    };
+    let payload = GeoJsonPrepareProgressPayload {
+        request_id: request_id.to_string(),
+        stage: stage.to_string(),
+        percent,
+        message,
+        total_features,
+        processed_features,
+    };
+    let _ = app.emit("geojson_prepare_progress", payload);
 }
 
 fn tile_bbox(z: u8, x: u32, y: u32) -> BBox {
@@ -2165,7 +2213,10 @@ fn tile_bbox(z: u8, x: u32, y: u32) -> BBox {
 }
 
 fn bbox_intersects(a: BBox, b: BBox) -> bool {
-    !(a.max_lng < b.min_lng || a.min_lng > b.max_lng || a.max_lat < b.min_lat || a.min_lat > b.max_lat)
+    !(a.max_lng < b.min_lng
+        || a.min_lng > b.max_lng
+        || a.max_lat < b.min_lat
+        || a.min_lat > b.max_lat)
 }
 
 fn lod_tolerance_for_zoom(z: u8, bbox: BBox) -> f64 {
@@ -2426,7 +2477,9 @@ fn simplify_ring(ring: &[Value], tolerance: f64) -> Option<Vec<Value>> {
     }
 
     let original_area = ring_signed_area(ring).map(|v| v.abs()).unwrap_or(0.0);
-    let simplified_area = ring_signed_area(&simplified_body).map(|v| v.abs()).unwrap_or(0.0);
+    let simplified_area = ring_signed_area(&simplified_body)
+        .map(|v| v.abs())
+        .unwrap_or(0.0);
     if original_area > 0.0 && simplified_area < original_area * 0.01 {
         return None;
     }
@@ -2527,7 +2580,10 @@ fn simplify_geometry_inner(geometry: &Value, tolerance: f64) -> Option<Value> {
                 simplified_geometries.push(simplify_geometry_inner(child, tolerance)?);
             }
             let mut out = geometry_obj.clone();
-            out.insert("geometries".to_string(), Value::Array(simplified_geometries));
+            out.insert(
+                "geometries".to_string(),
+                Value::Array(simplified_geometries),
+            );
             Some(Value::Object(out))
         }
         _ => Some(geometry.clone()),
@@ -2557,7 +2613,8 @@ pub async fn get_file_meta(path: String) -> Result<FileMetaData, String> {
         return Err(format!("Not a file: {}", path));
     }
 
-    let metadata = fs::metadata(file_path).map_err(|e| format!("Failed to read metadata: {}", e))?;
+    let metadata =
+        fs::metadata(file_path).map_err(|e| format!("Failed to read metadata: {}", e))?;
     let extension = file_path
         .extension()
         .and_then(|s| s.to_str())
@@ -2573,27 +2630,184 @@ pub async fn get_file_meta(path: String) -> Result<FileMetaData, String> {
 
 #[tauri::command]
 pub async fn prepare_geojson_tiles(
+    app: AppHandle,
     path: String,
     state: tauri::State<'_, GeoJsonTileStore>,
     max_features_per_tile: Option<usize>,
     min_zoom: Option<u8>,
     max_zoom: Option<u8>,
+    progress_request_id: Option<String>,
 ) -> Result<GeoJsonTileSessionData, String> {
+    let progress_request_id = progress_request_id.as_deref();
+    emit_geojson_prepare_progress(
+        &app,
+        progress_request_id,
+        "reading",
+        0,
+        "Preparing GeoJSON tiles... 0%".to_string(),
+        None,
+        None,
+    );
+
     let file_path = Path::new(&path);
     if !file_path.exists() {
-        return Err(format!("File not found: {}", path));
+        let message = format!("File not found: {}", path);
+        emit_geojson_prepare_progress(
+            &app,
+            progress_request_id,
+            "error",
+            100,
+            message.clone(),
+            None,
+            None,
+        );
+        return Err(message);
     }
     if !file_path.is_file() {
-        return Err(format!("Not a file: {}", path));
+        let message = format!("Not a file: {}", path);
+        emit_geojson_prepare_progress(
+            &app,
+            progress_request_id,
+            "error",
+            100,
+            message.clone(),
+            None,
+            None,
+        );
+        return Err(message);
     }
 
-    let file_size_bytes = fs::metadata(file_path)
-        .map_err(|e| format!("Failed to read metadata: {}", e))?
-        .len();
-    let bytes = fs::read(file_path).map_err(|e| format!("Failed to read file: {}", e))?;
-    let raw = decode_text_bytes(&bytes)?;
-    let root: Value = serde_json::from_str(&raw).map_err(|e| format!("Failed to parse JSON: {}", e))?;
-    let (indexed_features, bounds) = extract_indexed_features(root)?;
+    emit_geojson_prepare_progress(
+        &app,
+        progress_request_id,
+        "reading",
+        8,
+        "Preparing GeoJSON tiles... 8%".to_string(),
+        None,
+        None,
+    );
+
+    let file_size_bytes = match fs::metadata(file_path) {
+        Ok(metadata) => metadata.len(),
+        Err(e) => {
+            let message = format!("Failed to read metadata: {}", e);
+            emit_geojson_prepare_progress(
+                &app,
+                progress_request_id,
+                "error",
+                100,
+                message.clone(),
+                None,
+                None,
+            );
+            return Err(message);
+        }
+    };
+    let bytes = match fs::read(file_path) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            let message = format!("Failed to read file: {}", e);
+            emit_geojson_prepare_progress(
+                &app,
+                progress_request_id,
+                "error",
+                100,
+                message.clone(),
+                None,
+                None,
+            );
+            return Err(message);
+        }
+    };
+    emit_geojson_prepare_progress(
+        &app,
+        progress_request_id,
+        "parsing",
+        20,
+        "Preparing GeoJSON tiles... 20% (parsing JSON)".to_string(),
+        None,
+        None,
+    );
+
+    let raw = match decode_text_bytes(&bytes) {
+        Ok(raw) => raw,
+        Err(message) => {
+            emit_geojson_prepare_progress(
+                &app,
+                progress_request_id,
+                "error",
+                100,
+                message.clone(),
+                None,
+                None,
+            );
+            return Err(message);
+        }
+    };
+    let root: Value = match serde_json::from_str(&raw) {
+        Ok(root) => root,
+        Err(e) => {
+            let message = format!("Failed to parse JSON: {}", e);
+            emit_geojson_prepare_progress(
+                &app,
+                progress_request_id,
+                "error",
+                100,
+                message.clone(),
+                None,
+                None,
+            );
+            return Err(message);
+        }
+    };
+    emit_geojson_prepare_progress(
+        &app,
+        progress_request_id,
+        "indexing",
+        30,
+        "Preparing GeoJSON tiles... 30% (indexing features)".to_string(),
+        None,
+        None,
+    );
+    let mut last_percent = 29u8;
+    let (indexed_features, bounds) = match extract_indexed_features(root, |processed, total| {
+            if total == 0 {
+                return;
+            }
+            let ratio = processed as f64 / total as f64;
+            let percent = (30.0 + ratio * 65.0).round().clamp(30.0, 95.0) as u8;
+            if percent <= last_percent {
+                return;
+            }
+            last_percent = percent;
+            let message = format!(
+                "Preparing GeoJSON tiles... {}% (indexing {} / {})",
+                percent, processed, total
+            );
+            emit_geojson_prepare_progress(
+                &app,
+                progress_request_id,
+                "indexing",
+                percent,
+                message,
+                Some(total),
+                Some(processed),
+            );
+        }) {
+            Ok(result) => result,
+            Err(message) => {
+                emit_geojson_prepare_progress(
+                    &app,
+                    progress_request_id,
+                    "error",
+                    100,
+                    message.clone(),
+                    None,
+                    None,
+                );
+                return Err(message);
+            }
+        };
 
     let min_zoom = min_zoom.unwrap_or(0).min(20);
     let mut max_zoom = max_zoom.unwrap_or(12).min(20);
@@ -2619,11 +2833,44 @@ pub async fn prepare_geojson_tiles(
         resolved_auto_mode: None,
     };
 
-    let mut sessions = state
-        .sessions
-        .lock()
-        .map_err(|_| "GeoJSON tile store is poisoned".to_string())?;
+    emit_geojson_prepare_progress(
+        &app,
+        progress_request_id,
+        "finalizing",
+        97,
+        "Preparing GeoJSON tiles... 97% (finalizing)".to_string(),
+        Some(total_features),
+        Some(total_features),
+    );
+    let mut sessions = match state.sessions.lock() {
+        Ok(sessions) => sessions,
+        Err(_) => {
+            let message = "GeoJSON tile store is poisoned".to_string();
+            emit_geojson_prepare_progress(
+                &app,
+                progress_request_id,
+                "error",
+                100,
+                message.clone(),
+                None,
+                None,
+            );
+            return Err(message);
+        }
+    };
     sessions.insert(dataset_id.clone(), session);
+    emit_geojson_prepare_progress(
+        &app,
+        progress_request_id,
+        "done",
+        100,
+        format!(
+            "Preparing GeoJSON tiles... 100% (prepared {} features)",
+            total_features
+        ),
+        Some(total_features),
+        Some(total_features),
+    );
 
     Ok(GeoJsonTileSessionData {
         dataset_id,

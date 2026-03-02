@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import L from "leaflet";
 import {
   getFileMeta,
@@ -6,11 +7,48 @@ import {
   readGeoJsonTile,
   releaseGeoJsonTiles
 } from "../../lib/tauri";
-import type { GeoJsonTileSessionData } from "../../types";
+import type { GeoJsonPrepareProgressData, GeoJsonTileSessionData } from "../../types";
 
 interface GeoJsonMapViewerProps {
   geojson: GeoJSON.GeoJsonObject;
   contentRef: React.RefObject<HTMLDivElement | null>;
+}
+
+interface GeoJsonTileMapViewerProps {
+  filePath: string;
+  contentRef: React.RefObject<HTMLDivElement | null>;
+}
+
+type ResolutionMode = "auto" | "low" | "medium" | "high";
+
+const NARROW_LAYOUT_WIDTH = 1100;
+
+function createProgressRequestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `geojson-progress-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
+}
+
+function useIsNarrowLayout(): boolean {
+  const [isNarrow, setIsNarrow] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.innerWidth < NARROW_LAYOUT_WIDTH;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onResize = () => {
+      setIsNarrow(window.innerWidth < NARROW_LAYOUT_WIDTH);
+    };
+
+    window.addEventListener("resize", onResize);
+    onResize();
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  return isNarrow;
 }
 
 function getFeatureSummary(feature: GeoJSON.Feature | undefined): string {
@@ -30,11 +68,32 @@ function formatProperties(feature: GeoJSON.Feature | undefined): string {
   return JSON.stringify(feature.properties, null, 2);
 }
 
+function GeoJsonPropertiesBody({
+  selectedFeature
+}: {
+  selectedFeature: GeoJSON.Feature | null;
+}) {
+  const title = getFeatureSummary(selectedFeature ?? undefined);
+  const properties = formatProperties(selectedFeature ?? undefined);
+
+  return (
+    <div className="geojson-properties-inner">
+      <div className="geojson-properties-title">{title}</div>
+      <pre className="geojson-properties-pre">{properties}</pre>
+    </div>
+  );
+}
+
 export function GeoJsonMapViewer({ geojson, contentRef }: GeoJsonMapViewerProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.GeoJSON | null>(null);
   const [hoverInfo, setHoverInfo] = useState<string>("Hover a feature");
+  const [selectedFeature, setSelectedFeature] = useState<GeoJSON.Feature | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const isNarrow = useIsNarrowLayout();
 
   const normalizedGeoJson = useMemo(() => geojson, [geojson]);
 
@@ -44,6 +103,11 @@ export function GeoJsonMapViewer({ geojson, contentRef }: GeoJsonMapViewerProps)
     const map = L.map(mapContainerRef.current, {
       zoomControl: true,
       attributionControl: true
+    });
+    map.on("click", () => {
+      setSelectedFeature(null);
+      setDrawerOpen(false);
+      setPanelOpen(false);
     });
 
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -76,6 +140,11 @@ export function GeoJsonMapViewer({ geojson, contentRef }: GeoJsonMapViewerProps)
       layerRef.current = null;
     }
 
+    setSelectedFeature(null);
+    if (!isNarrow) {
+      setDrawerOpen(false);
+    }
+
     const layer = L.geoJSON(normalizedGeoJson, {
       style: {
         color: "#2a85ff",
@@ -100,18 +169,13 @@ export function GeoJsonMapViewer({ geojson, contentRef }: GeoJsonMapViewerProps)
           setHoverInfo("Hover a feature");
         });
         targetLayer.on("click", (event) => {
-          const title = getFeatureSummary(feature);
-          const properties = formatProperties(feature);
-          const escapedProperties = properties
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-          targetLayer.bindPopup(
-            `<div style="min-width:220px;max-width:360px;">`
-              + `<div style="margin-bottom:6px;font-weight:600;">${title}</div>`
-              + `<pre style="margin:0;font-size:12px;line-height:1.4;white-space:pre-wrap;word-break:break-word;">${escapedProperties}</pre>`
-              + `</div>`
-          ).openPopup(event.latlng);
+          L.DomEvent.stopPropagation(event);
+          setSelectedFeature(feature);
+          if (isNarrow) {
+            setDrawerOpen(true);
+          } else {
+            setPanelOpen(true);
+          }
         });
       }
     });
@@ -125,22 +189,82 @@ export function GeoJsonMapViewer({ geojson, contentRef }: GeoJsonMapViewerProps)
     } else {
       mapRef.current.setView([35.681236, 139.767125], 3);
     }
-  }, [normalizedGeoJson]);
+  }, [normalizedGeoJson, isNarrow]);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    mapRef.current.invalidateSize();
+  }, [isNarrow, drawerOpen, panelOpen, isFullscreen]);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    if (isNarrow) {
+      setPanelOpen(false);
+      return;
+    }
+    setDrawerOpen(false);
+  }, [isNarrow]);
 
   return (
-    <div ref={contentRef} className="geojson-view">
-      <div className="geojson-status">{hoverInfo}</div>
-      <div ref={mapContainerRef} className="geojson-map" />
+    <div ref={contentRef} className={`geojson-view${isFullscreen ? " is-fullscreen" : ""}`}>
+      <div className="geojson-status">
+        <div className="geojson-status-left">{hoverInfo}</div>
+        <div className="geojson-status-right">
+          <button
+            type="button"
+            className="geojson-properties-toggle"
+            onClick={() => setIsFullscreen((prev) => !prev)}
+          >
+            {isFullscreen ? "戻す" : "全画面"}
+          </button>
+          {isNarrow && (
+            <button
+              type="button"
+              className="geojson-properties-toggle"
+              onClick={() => setDrawerOpen((prev) => !prev)}
+            >
+              {drawerOpen ? "閉じる" : "Properties"}
+            </button>
+          )}
+          {!isNarrow && (
+            <button
+              type="button"
+              className="geojson-properties-toggle"
+              onClick={() => setPanelOpen((prev) => !prev)}
+            >
+              {panelOpen ? "Properties非表示" : "Properties表示"}
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="geojson-content">
+        <div className="geojson-map-wrap">
+          <div ref={mapContainerRef} className="geojson-map" />
+          {!isNarrow && panelOpen && (
+            <aside className="geojson-properties-panel is-overlay">
+              <GeoJsonPropertiesBody selectedFeature={selectedFeature} />
+            </aside>
+          )}
+          {isNarrow && drawerOpen && (
+            <aside className="geojson-properties-panel is-overlay is-drawer-overlay">
+              <GeoJsonPropertiesBody selectedFeature={selectedFeature} />
+            </aside>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
-
-interface GeoJsonTileMapViewerProps {
-  filePath: string;
-  contentRef: React.RefObject<HTMLDivElement | null>;
-}
-
-type ResolutionMode = "auto" | "low" | "medium" | "high";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -195,15 +319,21 @@ export function GeoJsonTileMapViewer({ filePath, contentRef }: GeoJsonTileMapVie
   >(new Map());
   const inflightRef = useRef<Set<string>>(new Set());
   const resolvedAutoModeRef = useRef<"low" | "medium" | "high" | null>(null);
+  const currentProgressRequestIdRef = useRef<string | null>(null);
   const loadSeqRef = useRef(0);
   const [session, setSession] = useState<GeoJsonTileSessionData | null>(null);
   const [hoverInfo, setHoverInfo] = useState<string>("Hover a feature");
+  const [selectedFeature, setSelectedFeature] = useState<GeoJSON.Feature | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [status, setStatus] = useState<string>("Preparing GeoJSON tiles...");
   const [error, setError] = useState<string | null>(null);
   const [resolutionMode, setResolutionMode] = useState<ResolutionMode>("auto");
   const [deviceCores, setDeviceCores] = useState<number | null>(null);
   const [deviceMemory, setDeviceMemory] = useState<number | null>(null);
   const [fileSizeBytes, setFileSizeBytes] = useState<number | null>(null);
+  const isNarrow = useIsNarrowLayout();
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
@@ -211,6 +341,11 @@ export function GeoJsonTileMapViewer({ filePath, contentRef }: GeoJsonTileMapVie
     const map = L.map(mapContainerRef.current, {
       zoomControl: true,
       attributionControl: true
+    });
+    map.on("click", () => {
+      setSelectedFeature(null);
+      setDrawerOpen(false);
+      setPanelOpen(false);
     });
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
@@ -268,10 +403,16 @@ export function GeoJsonTileMapViewer({ filePath, contentRef }: GeoJsonTileMapVie
   useEffect(() => {
     let cancelled = false;
     let currentDatasetId: string | null = null;
+    let removeProgressListener: (() => void) | null = null;
 
     const prepare = async () => {
+      const progressRequestId = createProgressRequestId();
+      currentProgressRequestIdRef.current = progressRequestId;
       setError(null);
       setSession(null);
+      setSelectedFeature(null);
+      setDrawerOpen(false);
+      setPanelOpen(true);
       tileCacheRef.current.clear();
       tileStatsRef.current.clear();
       inflightRef.current.clear();
@@ -279,10 +420,26 @@ export function GeoJsonTileMapViewer({ filePath, contentRef }: GeoJsonTileMapVie
       setStatus("Preparing GeoJSON tiles...");
 
       try {
+        removeProgressListener = await listen<GeoJsonPrepareProgressData>(
+          "geojson_prepare_progress",
+          (event) => {
+            const payload = event.payload;
+            if (payload.requestId !== currentProgressRequestIdRef.current) {
+              return;
+            }
+            setStatus(payload.message);
+          }
+        );
+        if (cancelled) {
+          removeProgressListener();
+          removeProgressListener = null;
+          return;
+        }
         const created = await prepareGeoJsonTiles(filePath, {
           maxFeaturesPerTile: 1200,
           minZoom: 0,
-          maxZoom: 12
+          maxZoom: 12,
+          progressRequestId
         });
         currentDatasetId = created.datasetId;
         if (cancelled) {
@@ -301,6 +458,11 @@ export function GeoJsonTileMapViewer({ filePath, contentRef }: GeoJsonTileMapVie
           setError(String(e));
           setStatus("Failed to prepare GeoJSON tiles");
         }
+      } finally {
+        if (removeProgressListener) {
+          removeProgressListener();
+          removeProgressListener = null;
+        }
       }
     };
 
@@ -308,6 +470,10 @@ export function GeoJsonTileMapViewer({ filePath, contentRef }: GeoJsonTileMapVie
 
     return () => {
       cancelled = true;
+      currentProgressRequestIdRef.current = null;
+      if (removeProgressListener) {
+        removeProgressListener();
+      }
       const datasetId = currentDatasetId;
       if (datasetId) {
         void releaseGeoJsonTiles(datasetId);
@@ -436,18 +602,13 @@ export function GeoJsonTileMapViewer({ filePath, contentRef }: GeoJsonTileMapVie
           targetLayer.on("mouseover", () => setHoverInfo(getFeatureSummary(feature)));
           targetLayer.on("mouseout", () => setHoverInfo("Hover a feature"));
           targetLayer.on("click", (event) => {
-            const title = getFeatureSummary(feature);
-            const properties = formatProperties(feature);
-            const escapedProperties = properties
-              .replace(/&/g, "&amp;")
-              .replace(/</g, "&lt;")
-              .replace(/>/g, "&gt;");
-            targetLayer.bindPopup(
-              `<div style="min-width:220px;max-width:360px;">`
-                + `<div style="margin-bottom:6px;font-weight:600;">${title}</div>`
-                + `<pre style="margin:0;font-size:12px;line-height:1.4;white-space:pre-wrap;word-break:break-word;">${escapedProperties}</pre>`
-                + `</div>`
-            ).openPopup(event.latlng);
+            L.DomEvent.stopPropagation(event);
+            setSelectedFeature(feature);
+            if (isNarrow) {
+              setDrawerOpen(true);
+            } else {
+              setPanelOpen(true);
+            }
           });
         }
       }
@@ -464,7 +625,7 @@ export function GeoJsonTileMapViewer({ filePath, contentRef }: GeoJsonTileMapVie
           toleranceMax.toPrecision(3)
         } / mode ${resolvedMode}`
     );
-  }, [session, resolutionMode, deviceCores, deviceMemory]);
+  }, [session, resolutionMode, deviceCores, deviceMemory, isNarrow]);
 
   useEffect(() => {
     if (!mapRef.current || !session) return;
@@ -484,11 +645,42 @@ export function GeoJsonTileMapViewer({ filePath, contentRef }: GeoJsonTileMapVie
     };
   }, [session, refreshVisibleTiles]);
 
+  useEffect(() => {
+    if (!mapRef.current) return;
+    mapRef.current.invalidateSize();
+  }, [isNarrow, drawerOpen, panelOpen, isFullscreen]);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    if (isNarrow) {
+      setPanelOpen(false);
+      return;
+    }
+    setDrawerOpen(false);
+  }, [isNarrow]);
+
   return (
-    <div ref={contentRef} className="geojson-view">
+    <div ref={contentRef} className={`geojson-view${isFullscreen ? " is-fullscreen" : ""}`}>
       <div className="geojson-status">
         <div className="geojson-status-left">{error ? error : `${status} | ${hoverInfo}`}</div>
         <div className="geojson-status-right">
+          <button
+            type="button"
+            className="geojson-properties-toggle"
+            onClick={() => setIsFullscreen((prev) => !prev)}
+          >
+            {isFullscreen ? "戻す" : "全画面"}
+          </button>
           <span className="geojson-resolution-label">解像度</span>
           <select
             className="geojson-resolution-select"
@@ -515,9 +707,41 @@ export function GeoJsonTileMapViewer({ filePath, contentRef }: GeoJsonTileMapVie
               {deviceMemory ? ` / ${deviceMemory}GB` : ""}
             </span>
           )}
+          {isNarrow && (
+            <button
+              type="button"
+              className="geojson-properties-toggle"
+              onClick={() => setDrawerOpen((prev) => !prev)}
+            >
+              {drawerOpen ? "閉じる" : "Properties"}
+            </button>
+          )}
+          {!isNarrow && (
+            <button
+              type="button"
+              className="geojson-properties-toggle"
+              onClick={() => setPanelOpen((prev) => !prev)}
+            >
+              {panelOpen ? "Properties非表示" : "Properties表示"}
+            </button>
+          )}
         </div>
       </div>
-      <div ref={mapContainerRef} className="geojson-map" />
+      <div className="geojson-content">
+        <div className="geojson-map-wrap">
+          <div ref={mapContainerRef} className="geojson-map" />
+          {!isNarrow && panelOpen && (
+            <aside className="geojson-properties-panel is-overlay">
+              <GeoJsonPropertiesBody selectedFeature={selectedFeature} />
+            </aside>
+          )}
+          {isNarrow && drawerOpen && (
+            <aside className="geojson-properties-panel is-overlay is-drawer-overlay">
+              <GeoJsonPropertiesBody selectedFeature={selectedFeature} />
+            </aside>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

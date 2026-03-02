@@ -148,13 +148,15 @@ export async function prepareGeoJsonTiles(
     maxFeaturesPerTile?: number;
     minZoom?: number;
     maxZoom?: number;
+    progressRequestId?: string;
   }
 ): Promise<GeoJsonTileSessionData> {
   return invoke<GeoJsonTileSessionData>("prepare_geojson_tiles", {
     path,
     maxFeaturesPerTile: options?.maxFeaturesPerTile,
     minZoom: options?.minZoom,
-    maxZoom: options?.maxZoom
+    maxZoom: options?.maxZoom,
+    progressRequestId: options?.progressRequestId
   });
 }
 
