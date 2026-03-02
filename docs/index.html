@@ -3,332 +3,1197 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>View Bomber Downloads</title>
-    <style>
-      @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap");
+    <title>View Bomber - One app. Every document format.</title>
+    <meta name="description" content="A fast, native desktop document viewer supporting 30+ file formats. PDF, DOCX, CSV, JSON, SQLite, GeoJSON, and more. Built with Tauri + React." />
 
+    <!-- OG / Twitter Card -->
+    <meta property="og:title" content="View Bomber - One app. Every document format." />
+    <meta property="og:description" content="A fast, native desktop document viewer supporting 30+ file formats. PDF, DOCX, CSV, JSON, SQLite, GeoJSON, and more." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="icon.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="View Bomber - One app. Every document format." />
+    <meta name="twitter:description" content="A fast, native desktop document viewer supporting 30+ file formats." />
+
+    <link rel="icon" href="icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+    <style>
       :root {
-        --bg-top: #091420;
-        --bg-bottom: #102030;
+        --bg: #091420;
+        --bg-deep: #060e18;
         --surface: rgba(11, 24, 38, 0.72);
-        --line: rgba(255, 255, 255, 0.16);
+        --surface-raised: rgba(255, 255, 255, 0.04);
+        --line: rgba(255, 255, 255, 0.10);
+        --line-strong: rgba(255, 255, 255, 0.16);
         --text: #e9f2ff;
-        --muted: #9cb0ca;
-        --glow: #66d1ff;
+        --text-secondary: #9cb0ca;
+        --cyan: #41c9e2;
+        --cyan-dim: rgba(65, 201, 226, 0.15);
+        --gold: #f5c542;
+        --gold-dim: rgba(245, 197, 66, 0.12);
         --mac: #5ce1c5;
         --win: #5ea5ff;
         --linux: #ffd36b;
+        --font-body: 'Space Grotesk', 'Avenir Next', 'Segoe UI', sans-serif;
+        --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+        --max-w: 1120px;
+        --nav-h: 60px;
       }
 
-      * {
-        box-sizing: border-box;
-      }
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      html { scroll-behavior: smooth; scroll-padding-top: calc(var(--nav-h) + 24px); }
 
       body {
-        margin: 0;
-        min-height: 100vh;
-        font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+        font-family: var(--font-body);
         color: var(--text);
-        background:
-          radial-gradient(1000px 540px at -10% -10%, rgba(92, 225, 197, 0.18), transparent 55%),
-          radial-gradient(900px 540px at 110% 0%, rgba(94, 165, 255, 0.2), transparent 58%),
-          linear-gradient(165deg, var(--bg-top), var(--bg-bottom));
+        background: var(--bg);
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
       }
 
-      .wrap {
-        max-width: 980px;
+      /* ── Gradient orbs (background) ── */
+      body::before, body::after {
+        content: '';
+        position: fixed;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 0;
+        filter: blur(120px);
+      }
+      body::before {
+        width: 800px; height: 800px;
+        top: -200px; left: -200px;
+        background: radial-gradient(circle, rgba(65, 201, 226, 0.18), transparent 70%);
+      }
+      body::after {
+        width: 700px; height: 700px;
+        bottom: -100px; right: -200px;
+        background: radial-gradient(circle, rgba(245, 197, 66, 0.12), transparent 70%);
+      }
+
+      a { color: inherit; text-decoration: none; }
+
+      .container {
+        max-width: var(--max-w);
         margin: 0 auto;
-        padding: 56px 20px 64px;
+        padding: 0 24px;
       }
 
-      .hero {
-        margin-bottom: 20px;
+      /* ── Navigation ── */
+      .nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        height: var(--nav-h);
+        border-bottom: 1px solid var(--line);
+        background: rgba(9, 20, 32, 0.82);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
       }
+      .nav .container {
+        display: flex;
+        align-items: center;
+        height: 100%;
+        gap: 24px;
+      }
+      .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        letter-spacing: -0.01em;
+        flex-shrink: 0;
+      }
+      .nav-brand img {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+      }
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        margin-left: auto;
+        font-size: 0.88rem;
+        font-weight: 500;
+      }
+      .nav-links a {
+        color: var(--text-secondary);
+        transition: color 0.15s;
+      }
+      .nav-links a:hover { color: var(--text); }
+      .nav-stars {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 10px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        font-size: 0.82rem;
+        color: var(--text-secondary);
+        transition: border-color 0.15s, color 0.15s;
+      }
+      .nav-stars:hover { border-color: var(--line-strong); color: var(--text); }
+      .nav-stars svg { width: 16px; height: 16px; }
 
-      .kicker {
+      /* ── Section spacing ── */
+      section { position: relative; z-index: 1; }
+      .section-label {
         display: inline-block;
-        margin-bottom: 12px;
-        padding: 6px 10px;
+        padding: 4px 12px;
         border: 1px solid var(--line);
         border-radius: 999px;
-        color: #c9dcf5;
-        font-size: 12px;
-        letter-spacing: 0.08em;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
-        background: rgba(255, 255, 255, 0.04);
+        color: var(--cyan);
+        margin-bottom: 16px;
       }
-
-      h1 {
-        margin: 0;
-        font-size: clamp(34px, 5vw, 56px);
-        letter-spacing: -0.02em;
-        line-height: 0.96;
-      }
-
-      .subtitle {
-        max-width: 700px;
-        margin-top: 14px;
-        color: var(--muted);
-        font-size: clamp(15px, 2.3vw, 18px);
-      }
-
-      .panel {
-        border-radius: 22px;
-        border: 1px solid var(--line);
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
-        backdrop-filter: blur(8px);
-        padding: 18px;
-        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
-      }
-
-      .about {
-        margin-top: 16px;
-        border-radius: 18px;
-        border: 1px solid var(--line);
-        background: rgba(7, 18, 30, 0.62);
-        padding: 18px;
-      }
-
-      .about h2 {
-        margin: 0 0 8px;
-        font-size: 1.1rem;
-      }
-
-      .about p {
-        margin: 0;
-        color: var(--muted);
-      }
-
-      .feature-grid {
-        margin-top: 14px;
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
-      }
-
-      .feature {
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 12px;
-        padding: 10px;
-        background: rgba(255, 255, 255, 0.03);
-      }
-
-      .feature strong {
-        display: block;
-        margin-bottom: 4px;
-        font-size: 0.9rem;
-      }
-
-      .feature span {
-        color: var(--muted);
-        font-size: 0.84rem;
-        line-height: 1.35;
-      }
-
-      .meta {
-        margin-bottom: 14px;
-        color: #d8e8ff;
-        font-weight: 500;
-        font-size: 0.95rem;
-      }
-
-      .buttons {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 12px;
-      }
-
-      .btn {
-        display: block;
-        text-decoration: none;
-        color: #04131f;
-        border-radius: 14px;
-        padding: 15px 14px;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+      .section-title {
+        font-size: clamp(1.6rem, 3.5vw, 2.4rem);
         font-weight: 700;
-        animation: rise 380ms ease both;
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+        margin-bottom: 12px;
+      }
+      .section-desc {
+        color: var(--text-secondary);
+        font-size: 1.05rem;
+        max-width: 600px;
+        margin-bottom: 40px;
       }
 
-      .btn span {
-        display: block;
-        margin-top: 4px;
-        font-size: 0.82rem;
-        color: rgba(3, 18, 30, 0.78);
+      /* ── Hero ── */
+      .hero {
+        padding: 100px 0 80px;
+        text-align: center;
+      }
+      .hero-title {
+        font-size: clamp(2.4rem, 6vw, 4rem);
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 1.05;
+        margin-bottom: 20px;
+      }
+      .hero-title .accent { color: var(--cyan); }
+      .hero-sub {
+        font-size: clamp(1rem, 2vw, 1.2rem);
+        color: var(--text-secondary);
+        max-width: 580px;
+        margin: 0 auto 40px;
+        line-height: 1.6;
+      }
+      .hero-sub strong {
+        color: var(--text);
         font-weight: 600;
       }
-
-      .btn.mac {
-        background: linear-gradient(135deg, var(--mac), #b9fff1);
-      }
-
-      .btn.win {
-        background: linear-gradient(135deg, var(--win), #d0e4ff);
-      }
-
-      .btn.linux {
-        background: linear-gradient(135deg, var(--linux), #ffe9b7);
-      }
-
-      .btn:hover {
-        transform: translateY(-2px);
-        filter: saturate(1.05);
-        box-shadow: 0 18px 34px rgba(0, 0, 0, 0.24);
-      }
-
-      .footer-links {
-        margin-top: 16px;
+      .hero-actions {
         display: flex;
+        align-items: center;
+        justify-content: center;
         gap: 16px;
         flex-wrap: wrap;
       }
+      .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 14px 28px;
+        border-radius: 12px;
+        font-family: var(--font-body);
+        font-weight: 600;
+        font-size: 1rem;
+        background: linear-gradient(135deg, var(--cyan), #2da8c0);
+        color: #04131f;
+        border: none;
+        cursor: pointer;
+        transition: transform 0.15s, box-shadow 0.15s;
+      }
+      .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 30px rgba(65, 201, 226, 0.25);
+      }
+      .btn-primary svg { width: 18px; height: 18px; }
+      .btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 13px 24px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1rem;
+        border: 1px solid var(--line-strong);
+        color: var(--text);
+        transition: border-color 0.15s, background 0.15s;
+      }
+      .btn-secondary:hover {
+        border-color: rgba(255, 255, 255, 0.28);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .btn-secondary svg { width: 18px; height: 18px; }
 
+      /* ── App Preview (CSS mock) ── */
+      .preview {
+        padding: 0 0 80px;
+      }
+      .preview-window {
+        max-width: 900px;
+        margin: 0 auto;
+        border-radius: 14px;
+        border: 1px solid var(--line-strong);
+        background: var(--bg-deep);
+        overflow: hidden;
+        box-shadow: 0 40px 100px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255,255,255,0.05);
+      }
+      .preview-titlebar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border-bottom: 1px solid var(--line);
+      }
+      .traffic-dot {
+        width: 12px; height: 12px;
+        border-radius: 50%;
+      }
+      .traffic-dot.red { background: #ff5f57; }
+      .traffic-dot.yellow { background: #febc2e; }
+      .traffic-dot.green { background: #28c840; }
+      .preview-titlebar-text {
+        margin-left: 12px;
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+      }
+      .preview-body {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        min-height: 360px;
+      }
+      .preview-sidebar {
+        border-right: 1px solid var(--line);
+        padding: 12px 0;
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+        overflow: hidden;
+      }
+      .sidebar-header {
+        padding: 4px 14px 10px;
+        font-family: var(--font-body);
+        font-weight: 600;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: rgba(255, 255, 255, 0.4);
+      }
+      .sidebar-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 14px;
+        cursor: default;
+        transition: background 0.1s;
+      }
+      .sidebar-item.active {
+        background: var(--cyan-dim);
+        color: var(--cyan);
+      }
+      .sidebar-item svg { width: 14px; height: 14px; flex-shrink: 0; opacity: 0.5; }
+      .sidebar-item.active svg { opacity: 1; }
+      .preview-content {
+        padding: 24px 28px;
+        overflow: hidden;
+      }
+      .mock-h1 {
+        font-family: var(--font-body);
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 12px;
+        color: var(--text);
+      }
+      .mock-h2 {
+        font-family: var(--font-body);
+        font-size: 1.05rem;
+        font-weight: 600;
+        margin: 16px 0 8px;
+        color: var(--text);
+      }
+      .mock-p {
+        font-size: 0.88rem;
+        color: var(--text-secondary);
+        line-height: 1.7;
+        margin-bottom: 10px;
+      }
+      .mock-code {
+        display: block;
+        margin: 12px 0;
+        padding: 12px 14px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--line);
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        color: var(--cyan);
+        line-height: 1.65;
+        white-space: pre;
+        overflow-x: auto;
+      }
+
+      /* ── Features ── */
+      .features { padding: 80px 0; }
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      .feature-card {
+        padding: 24px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: var(--surface-raised);
+        transition: border-color 0.2s, transform 0.2s;
+      }
+      .feature-card:hover {
+        border-color: var(--line-strong);
+        transform: translateY(-2px);
+      }
+      .feature-icon {
+        width: 40px; height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        margin-bottom: 14px;
+        background: var(--cyan-dim);
+      }
+      .feature-icon svg {
+        width: 20px; height: 20px;
+        stroke: var(--cyan);
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .feature-card:nth-child(even) .feature-icon {
+        background: var(--gold-dim);
+      }
+      .feature-card:nth-child(even) .feature-icon svg {
+        stroke: var(--gold);
+      }
+      .feature-card h3 {
+        font-size: 1.05rem;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+      .feature-card p {
+        font-size: 0.88rem;
+        color: var(--text-secondary);
+        line-height: 1.55;
+      }
+
+      /* ── Formats ── */
+      .formats { padding: 80px 0; }
+      .formats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+      .format-group {
+        padding: 20px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: var(--surface-raised);
+      }
+      .format-group h3 {
+        font-size: 0.88rem;
+        font-weight: 600;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .format-group h3 svg {
+        width: 16px; height: 16px;
+        stroke: var(--cyan);
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .format-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .format-tag {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 6px;
+        font-family: var(--font-mono);
+        font-size: 0.76rem;
+        font-weight: 500;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--line);
+        color: var(--text-secondary);
+        transition: border-color 0.15s, color 0.15s;
+      }
+      .format-tag:hover {
+        border-color: var(--cyan);
+        color: var(--cyan);
+      }
+
+      /* ── Download ── */
+      .download { padding: 80px 0; }
+      .download-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      .download-card {
+        position: relative;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      .download-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+      }
+      .download-card-bg {
+        position: absolute;
+        inset: 0;
+        opacity: 0.08;
+        z-index: 0;
+      }
+      .download-card.mac .download-card-bg { background: linear-gradient(135deg, var(--mac), transparent); }
+      .download-card.win .download-card-bg { background: linear-gradient(135deg, var(--win), transparent); }
+      .download-card.linux .download-card-bg { background: linear-gradient(135deg, var(--linux), transparent); }
+      .download-card-inner {
+        position: relative;
+        z-index: 1;
+        padding: 28px 24px;
+      }
+      .download-os {
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 4px;
+      }
+      .download-card.mac .download-os { color: var(--mac); }
+      .download-card.win .download-os { color: var(--win); }
+      .download-card.linux .download-os { color: var(--linux); }
+      .download-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .download-file {
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+        margin-bottom: 20px;
+      }
+      .download-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #04131f;
+        transition: transform 0.15s, box-shadow 0.15s;
+      }
+      .download-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+      }
+      .download-card.mac .download-btn { background: linear-gradient(135deg, var(--mac), #b9fff1); }
+      .download-card.win .download-btn { background: linear-gradient(135deg, var(--win), #d0e4ff); }
+      .download-card.linux .download-btn { background: linear-gradient(135deg, var(--linux), #ffe9b7); }
+      .download-btn svg { width: 16px; height: 16px; }
+      .download-meta {
+        margin-top: 40px;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 24px;
+        flex-wrap: wrap;
+      }
+      .download-meta a {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        transition: color 0.15s;
+        text-decoration: underline;
+        text-decoration-color: rgba(156, 176, 202, 0.3);
+        text-underline-offset: 3px;
+      }
+      .download-meta a:hover { color: var(--text); }
+      .download-status {
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+      }
+
+      /* ── Build from Source ── */
+      .build-source { padding: 80px 0; }
+      .build-card {
+        max-width: 720px;
+        margin: 0 auto;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: var(--surface-raised);
+        overflow: hidden;
+      }
+      .build-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .build-header span {
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+      }
+      .copy-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        background: transparent;
+        color: var(--text-secondary);
+        font-family: var(--font-body);
+        font-size: 0.78rem;
+        cursor: pointer;
+        transition: border-color 0.15s, color 0.15s;
+      }
+      .copy-btn:hover { border-color: var(--line-strong); color: var(--text); }
+      .copy-btn svg { width: 14px; height: 14px; }
+      .build-code {
+        padding: 20px 24px;
+        font-family: var(--font-mono);
+        font-size: 0.82rem;
+        line-height: 2;
+        color: var(--text-secondary);
+        overflow-x: auto;
+      }
+      .build-code .comment { color: rgba(255, 255, 255, 0.25); }
+      .build-code .cmd { color: var(--cyan); }
+      .build-reqs {
+        max-width: 720px;
+        margin: 20px auto 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 24px;
+        flex-wrap: wrap;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+      }
+      .build-reqs span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .build-reqs .dot {
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: var(--cyan);
+        opacity: 0.6;
+      }
+
+      /* ── Footer ── */
+      .footer {
+        border-top: 1px solid var(--line);
+        padding: 40px 0;
+        margin-top: 40px;
+      }
+      .footer .container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      .footer-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+      }
+      .footer-brand img {
+        width: 22px;
+        height: 22px;
+        border-radius: 5px;
+      }
+      .footer-links {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        font-size: 0.85rem;
+        flex-wrap: wrap;
+      }
       .footer-links a {
-        color: #c4e9ff;
-        text-decoration-color: rgba(196, 233, 255, 0.45);
+        color: var(--text-secondary);
+        transition: color 0.15s;
+      }
+      .footer-links a:hover { color: var(--text); }
+      .footer-note {
+        width: 100%;
+        text-align: center;
+        margin-top: 8px;
+        font-size: 0.8rem;
+        color: rgba(156, 176, 202, 0.5);
       }
 
-      .muted {
-        margin-top: 12px;
-        color: var(--muted);
+      /* ── Scroll reveal ── */
+      .reveal {
+        opacity: 0;
+        transform: translateY(24px);
+        transition: opacity 0.5s ease, transform 0.5s ease;
+      }
+      .reveal.visible {
+        opacity: 1;
+        transform: translateY(0);
       }
 
-      @keyframes rise {
-        from {
-          opacity: 0;
-          transform: translateY(8px);
-        }
+      @media (prefers-reduced-motion: reduce) {
+        .reveal { opacity: 1; transform: none; transition: none; }
+        html { scroll-behavior: auto; }
+      }
 
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
+      /* ── Responsive ── */
+      @media (max-width: 1120px) {
+        .features-grid { grid-template-columns: repeat(2, 1fr); }
       }
 
       @media (max-width: 860px) {
-        .buttons {
-          grid-template-columns: 1fr;
-        }
+        .hero { padding: 70px 0 60px; }
+        .features-grid { grid-template-columns: repeat(2, 1fr); }
+        .formats-grid { grid-template-columns: 1fr; }
+        .download-grid { grid-template-columns: 1fr; }
+        .preview-body { grid-template-columns: 180px 1fr; }
+        .nav-links .nav-link-text { display: none; }
+      }
 
-        .feature-grid {
+      @media (max-width: 540px) {
+        .hero { padding: 50px 0 40px; }
+        .hero-actions { flex-direction: column; }
+        .features-grid { grid-template-columns: 1fr; }
+        .preview-body {
           grid-template-columns: 1fr;
         }
+        .preview-sidebar {
+          border-right: none;
+          border-bottom: 1px solid var(--line);
+          padding: 8px 0;
+        }
+        .preview-content { padding: 16px; }
+        .footer .container { justify-content: center; text-align: center; }
+        .footer-brand { width: 100%; justify-content: center; }
+        .footer-links { justify-content: center; }
+        .build-code { font-size: 0.72rem; padding: 14px 16px; }
       }
     </style>
   </head>
   <body>
-    <main class="wrap">
-      <section class="hero">
-        <div class="kicker">View Bomber</div>
-        <h1>Fast, direct installer downloads</h1>
-        <p class="subtitle">Choose your OS and download the latest build without opening the GitHub release page.</p>
-      </section>
-
-      <section class="panel">
-        <div id="status" class="meta">Preparing direct download links...</div>
-
-        <div class="buttons">
-          <a id="macLink" class="btn mac" href="#" rel="noopener noreferrer">
-            Download for macOS
-            <span>Latest release installer</span>
-          </a>
-          <a id="winLink" class="btn win" href="#" rel="noopener noreferrer">
-            Download for Windows
-            <span>Latest release installer</span>
-          </a>
-          <a id="linuxLink" class="btn linux" href="#" rel="noopener noreferrer">
-            Download for Linux
-            <span>Latest release installer</span>
+    <!-- ── Navigation ── -->
+    <nav class="nav">
+      <div class="container">
+        <a href="#" class="nav-brand">
+          <img src="icon.png" alt="View Bomber" width="28" height="28" />
+          View Bomber
+        </a>
+        <div class="nav-links">
+          <a href="#features" class="nav-link-text">Features</a>
+          <a href="#formats" class="nav-link-text">Formats</a>
+          <a href="#download" class="nav-link-text">Download</a>
+          <a href="https://github.com/su-san1129/view-bomber" target="_blank" rel="noopener noreferrer" class="nav-stars" id="githubStar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            <span id="starCount">GitHub</span>
           </a>
         </div>
+      </div>
+    </nav>
 
+    <!-- ── Hero ── -->
+    <section class="hero">
+      <div class="container">
+        <h1 class="hero-title">One app.<br><span class="accent">Every document format.</span></h1>
+        <p class="hero-sub">Open <strong>30+ file formats</strong> instantly. PDF, DOCX, JSON, CSV, SQLite, GeoJSON, Markdown, images, and more &mdash; all in a single native desktop app.</p>
+        <div class="hero-actions">
+          <a href="#download" class="btn-primary" id="heroCta">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span id="heroCtaLabel">Download</span>
+          </a>
+          <a href="https://github.com/su-san1129/view-bomber" target="_blank" rel="noopener noreferrer" class="btn-secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            View on GitHub
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── App Preview ── -->
+    <section class="preview">
+      <div class="container">
+        <div class="preview-window reveal">
+          <div class="preview-titlebar">
+            <span class="traffic-dot red"></span>
+            <span class="traffic-dot yellow"></span>
+            <span class="traffic-dot green"></span>
+            <span class="preview-titlebar-text">View Bomber &mdash; ~/projects/my-app</span>
+          </div>
+          <div class="preview-body">
+            <div class="preview-sidebar">
+              <div class="sidebar-header">Files</div>
+              <div class="sidebar-item active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                README.md
+              </div>
+              <div class="sidebar-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                data.json
+              </div>
+              <div class="sidebar-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                report.pdf
+              </div>
+              <div class="sidebar-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                metrics.csv
+              </div>
+              <div class="sidebar-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                map.geojson
+              </div>
+              <div class="sidebar-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                schema.sql
+              </div>
+            </div>
+            <div class="preview-content">
+              <div class="mock-h1">My App</div>
+              <div class="mock-p">A powerful data analysis toolkit for modern teams. Supports CSV, JSON, Parquet, and database formats out of the box.</div>
+              <div class="mock-h2">Quick Start</div>
+              <div class="mock-p">Install dependencies and start the development server:</div>
+              <code class="mock-code"><span style="color: rgba(255,255,255,0.3);">$</span> bun install
+<span style="color: rgba(255,255,255,0.3);">$</span> bun run dev</code>
+              <div class="mock-h2">Features</div>
+              <div class="mock-p">Real-time data visualization, cross-format search, and plugin-based rendering for 30+ file types.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Features ── -->
+    <section class="features" id="features">
+      <div class="container">
+        <div class="section-label">Features</div>
+        <h2 class="section-title">Everything you need to<br>view any file</h2>
+        <p class="section-desc">No more juggling apps. One viewer handles documents, data, code, images, and geospatial files.</p>
+        <div class="features-grid">
+          <!-- 1 -->
+          <div class="feature-card reveal">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </div>
+            <h3>30+ Formats</h3>
+            <p>From PDF and DOCX to SQLite and GeoJSON. One app opens documents, data, images, and code files.</p>
+          </div>
+          <!-- 2 -->
+          <div class="feature-card reveal">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <h3>Folder Browser</h3>
+            <p>Browse directory trees with live file watching. Changes on disk are reflected instantly.</p>
+          </div>
+          <!-- 3 -->
+          <div class="feature-card reveal">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
+            <h3>Universal Search</h3>
+            <p>Full-text search across text-based files. Find content quickly with Cmd+F and sidebar search.</p>
+          </div>
+          <!-- 4 -->
+          <div class="feature-card reveal">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </div>
+            <h3>Plugin Architecture</h3>
+            <p>GeoJSON maps, CSV tables, syntax-highlighted code, and more. Each format gets a specialized renderer.</p>
+          </div>
+          <!-- 5 -->
+          <div class="feature-card reveal">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>
+            </div>
+            <h3>PDF Export</h3>
+            <p>Convert Markdown to PDF with bundled pandoc and tectonic. No external tools required.</p>
+          </div>
+          <!-- 6 -->
+          <div class="feature-card reveal">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+            <h3>Native Performance</h3>
+            <p>Built with Tauri and Rust. Lightweight binary, fast startup, and low memory usage.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Format Support ── -->
+    <section class="formats" id="formats">
+      <div class="container">
+        <div class="section-label">Format Support</div>
+        <h2 class="section-title">Open virtually anything</h2>
+        <p class="section-desc">View Bomber handles the file types you actually work with, from documents to databases.</p>
+        <div class="formats-grid">
+          <div class="format-group reveal">
+            <h3>
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Documents
+            </h3>
+            <div class="format-tags">
+              <span class="format-tag">.pdf</span>
+              <span class="format-tag">.docx</span>
+              <span class="format-tag">.odt</span>
+              <span class="format-tag">.rtf</span>
+              <span class="format-tag">.md</span>
+              <span class="format-tag">.html</span>
+            </div>
+          </div>
+          <div class="format-group reveal">
+            <h3>
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+              Data &amp; Spreadsheets
+            </h3>
+            <div class="format-tags">
+              <span class="format-tag">.csv</span>
+              <span class="format-tag">.tsv</span>
+              <span class="format-tag">.xlsx</span>
+              <span class="format-tag">.xls</span>
+              <span class="format-tag">.ods</span>
+              <span class="format-tag">.json</span>
+              <span class="format-tag">.geojson</span>
+              <span class="format-tag">.xml</span>
+              <span class="format-tag">.jsonl</span>
+            </div>
+          </div>
+          <div class="format-group reveal">
+            <h3>
+              <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+              Databases
+            </h3>
+            <div class="format-tags">
+              <span class="format-tag">.sqlite</span>
+              <span class="format-tag">.sqlite3</span>
+              <span class="format-tag">.db</span>
+              <span class="format-tag">.duckdb</span>
+              <span class="format-tag">.ddb</span>
+              <span class="format-tag">.parquet</span>
+            </div>
+          </div>
+          <div class="format-group reveal">
+            <h3>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              Geospatial
+            </h3>
+            <div class="format-tags">
+              <span class="format-tag">.geojson</span>
+              <span class="format-tag">.gpx</span>
+              <span class="format-tag">.kml</span>
+              <span class="format-tag">.kmz</span>
+              <span class="format-tag">.dxf</span>
+            </div>
+          </div>
+          <div class="format-group reveal">
+            <h3>
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              Images
+            </h3>
+            <div class="format-tags">
+              <span class="format-tag">.png</span>
+              <span class="format-tag">.jpg</span>
+              <span class="format-tag">.gif</span>
+              <span class="format-tag">.webp</span>
+              <span class="format-tag">.svg</span>
+              <span class="format-tag">.bmp</span>
+              <span class="format-tag">.avif</span>
+              <span class="format-tag">.tif</span>
+            </div>
+          </div>
+          <div class="format-group reveal">
+            <h3>
+              <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              Code
+            </h3>
+            <div class="format-tags">
+              <span class="format-tag">.ts</span>
+              <span class="format-tag">.js</span>
+              <span class="format-tag">.py</span>
+              <span class="format-tag">.rs</span>
+              <span class="format-tag">.go</span>
+              <span class="format-tag">.java</span>
+              <span class="format-tag">.c</span>
+              <span class="format-tag">.cpp</span>
+              <span class="format-tag">.rb</span>
+              <span class="format-tag" style="color: rgba(255,255,255,0.35);">+20 more</span>
+            </div>
+          </div>
+          <div class="format-group reveal" style="grid-column: 1 / -1;">
+            <h3>
+              <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              Config &amp; Text
+            </h3>
+            <div class="format-tags">
+              <span class="format-tag">.txt</span>
+              <span class="format-tag">.log</span>
+              <span class="format-tag">.yaml</span>
+              <span class="format-tag">.toml</span>
+              <span class="format-tag">.ini</span>
+              <span class="format-tag">.env</span>
+              <span class="format-tag">Dockerfile</span>
+              <span class="format-tag">Makefile</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Download ── -->
+    <section class="download" id="download">
+      <div class="container">
+        <div class="section-label">Download</div>
+        <h2 class="section-title">Get View Bomber</h2>
+        <p class="section-desc">Available for macOS, Windows, and Linux. Free and open source.</p>
+        <div id="downloadStatus" class="download-status">Loading latest release...</div>
+        <div class="download-grid">
+          <div class="download-card mac reveal">
+            <div class="download-card-bg"></div>
+            <div class="download-card-inner">
+              <div class="download-os">macOS</div>
+              <div class="download-title">Mac Installer</div>
+              <div class="download-file">.dmg &mdash; Apple Silicon &amp; Intel</div>
+              <a id="macLink" href="#" class="download-btn" rel="noopener noreferrer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download
+              </a>
+            </div>
+          </div>
+          <div class="download-card win reveal">
+            <div class="download-card-bg"></div>
+            <div class="download-card-inner">
+              <div class="download-os">Windows</div>
+              <div class="download-title">Windows Installer</div>
+              <div class="download-file">.msi &mdash; x64</div>
+              <a id="winLink" href="#" class="download-btn" rel="noopener noreferrer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download
+              </a>
+            </div>
+          </div>
+          <div class="download-card linux reveal">
+            <div class="download-card-bg"></div>
+            <div class="download-card-inner">
+              <div class="download-os">Linux</div>
+              <div class="download-title">Linux AppImage</div>
+              <div class="download-file">.AppImage &mdash; x86_64</div>
+              <a id="linuxLink" href="#" class="download-btn" rel="noopener noreferrer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="download-meta">
+          <a id="allReleases" href="#" target="_blank" rel="noopener noreferrer">All releases</a>
+          <a id="latestRelease" href="#" target="_blank" rel="noopener noreferrer">Release notes</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Build from Source ── -->
+    <section class="build-source">
+      <div class="container">
+        <div style="text-align: center;">
+          <div class="section-label">Developers</div>
+          <h2 class="section-title">Build from source</h2>
+          <p class="section-desc" style="margin-left: auto; margin-right: auto;">Clone the repo, install tools, and run the development server.</p>
+        </div>
+        <div class="build-card reveal">
+          <div class="build-header">
+            <span>Terminal</span>
+            <button class="copy-btn" id="copyBtn" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy
+            </button>
+          </div>
+          <div class="build-code" id="buildCode"><span class="comment"># Clone the repository</span>
+<span class="cmd">git clone https://github.com/su-san1129/view-bomber.git</span>
+<span class="cmd">cd view-bomber</span>
+
+<span class="comment"># Install toolchain</span>
+<span class="cmd">mise install</span>
+
+<span class="comment"># Initialize and run</span>
+<span class="cmd">mise run init</span>
+<span class="cmd">mise run tauri-dev</span></div>
+        </div>
+        <div class="build-reqs">
+          <span><span class="dot"></span>mise</span>
+          <span><span class="dot"></span>bun</span>
+          <span><span class="dot"></span>Rust</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Footer ── -->
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-brand">
+          <img src="icon.png" alt="View Bomber" width="22" height="22" />
+          View Bomber
+        </div>
         <div class="footer-links">
-          <a id="allReleases" href="#" rel="noopener noreferrer" target="_blank">All releases</a>
-          <a id="latestRelease" href="#" rel="noopener noreferrer" target="_blank">Latest release notes</a>
+          <a href="https://github.com/su-san1129/view-bomber" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="https://github.com/su-san1129/view-bomber/releases" target="_blank" rel="noopener noreferrer">Releases</a>
+          <a href="https://github.com/su-san1129/view-bomber/issues" target="_blank" rel="noopener noreferrer">Issues</a>
+          <a href="https://github.com/su-san1129/view-bomber/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a>
         </div>
-
-        <p class="muted">If a direct file is missing, open "All releases" and pick from Assets.</p>
-      </section>
-
-      <section class="about">
-        <h2>What is View Bomber?</h2>
-        <p>
-          View Bomber is a local desktop document viewer built with Tauri + React. It opens many file
-          types in one app with fast preview, folder browsing, and search.
-        </p>
-
-        <div class="feature-grid">
-          <div class="feature">
-            <strong>Multi-format Viewer</strong>
-            <span>Markdown, PDF, JSON/GeoJSON, CSV/TSV, DXF, DOCX, images, text, and more.</span>
-          </div>
-          <div class="feature">
-            <strong>Fast Local Workflow</strong>
-            <span>Open folders, switch files quickly, and search inside text-based content.</span>
-          </div>
-          <div class="feature">
-            <strong>Desktop Native</strong>
-            <span>Runs on macOS, Windows, and Linux with platform installers.</span>
-          </div>
-        </div>
-      </section>
-    </main>
+        <div class="footer-note">Built with Tauri + React. Open source.</div>
+      </div>
+    </footer>
 
     <script>
-      const statusEl = document.getElementById("status");
-      const macLinkEl = document.getElementById("macLink");
-      const winLinkEl = document.getElementById("winLink");
-      const linuxLinkEl = document.getElementById("linuxLink");
-      const allReleasesEl = document.getElementById("allReleases");
-      const latestReleaseEl = document.getElementById("latestRelease");
+      /* ── Config ── */
+      const OWNER = 'su-san1129';
+      const REPO = 'view-bomber';
+      const BASE_URL = `https://github.com/${OWNER}/${REPO}`;
 
-      function detectRepo() {
-        const host = location.hostname;
-        const pathParts = location.pathname.split("/").filter(Boolean);
+      /* ── Elements ── */
+      const macLinkEl = document.getElementById('macLink');
+      const winLinkEl = document.getElementById('winLink');
+      const linuxLinkEl = document.getElementById('linuxLink');
+      const allReleasesEl = document.getElementById('allReleases');
+      const latestReleaseEl = document.getElementById('latestRelease');
+      const downloadStatusEl = document.getElementById('downloadStatus');
+      const heroCtaEl = document.getElementById('heroCta');
+      const heroCtaLabel = document.getElementById('heroCtaLabel');
+      const starCountEl = document.getElementById('starCount');
+      const copyBtnEl = document.getElementById('copyBtn');
+      const buildCodeEl = document.getElementById('buildCode');
 
-        if (host.endsWith("github.io") && host.split(".")[0]) {
-          const owner = host.split(".")[0];
-          const repo = pathParts[0];
-          if (repo) {
-            return { owner, repo };
-          }
+      /* ── Set default download links ── */
+      const latestDL = `${BASE_URL}/releases/latest/download`;
+      macLinkEl.href = `${latestDL}/view-bomber-macos.dmg`;
+      winLinkEl.href = `${latestDL}/view-bomber-windows.msi`;
+      linuxLinkEl.href = `${latestDL}/view-bomber-linux.AppImage`;
+      allReleasesEl.href = `${BASE_URL}/releases`;
+      latestReleaseEl.href = `${BASE_URL}/releases/latest`;
+
+      /* ── OS Detection for Hero CTA ── */
+      (function detectOS() {
+        var ua = navigator.userAgent;
+        if (/Mac/i.test(ua)) {
+          heroCtaLabel.textContent = 'Download for macOS';
+          heroCtaEl.href = macLinkEl.href;
+        } else if (/Win/i.test(ua)) {
+          heroCtaLabel.textContent = 'Download for Windows';
+          heroCtaEl.href = winLinkEl.href;
+        } else if (/Linux/i.test(ua)) {
+          heroCtaLabel.textContent = 'Download for Linux';
+          heroCtaEl.href = linuxLinkEl.href;
+        } else {
+          heroCtaLabel.textContent = 'Download';
+          heroCtaEl.href = '#download';
         }
+      })();
 
-        return { owner: "su-san1129", repo: "view-bomber" };
-      }
+      /* ── GitHub API: latest release + stars ── */
+      (async function fetchGitHub() {
+        var headers = { Accept: 'application/vnd.github+json' };
 
-      async function main() {
-        const { owner, repo } = detectRepo();
-        const latestApi = `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
-        const releasesUrl = `https://github.com/${owner}/${repo}/releases`;
-        const latestDownloadBase = `https://github.com/${owner}/${repo}/releases/latest/download`;
-
-        allReleasesEl.href = releasesUrl;
-        macLinkEl.href = `${latestDownloadBase}/view-bomber-macos.dmg`;
-        winLinkEl.href = `${latestDownloadBase}/view-bomber-windows.msi`;
-        linuxLinkEl.href = `${latestDownloadBase}/view-bomber-linux.AppImage`;
-
+        /* Stars */
         try {
-          const response = await fetch(latestApi, {
-            headers: {
-              Accept: "application/vnd.github+json"
+          var repoRes = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}`, { headers: headers });
+          if (repoRes.ok) {
+            var repoData = await repoRes.json();
+            var count = repoData.stargazers_count;
+            if (count !== undefined) {
+              starCountEl.textContent = count >= 1000
+                ? (count / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
+                : String(count);
+            }
+          }
+        } catch (_) { /* silent */ }
+
+        /* Latest release */
+        try {
+          var res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`, { headers: headers });
+          if (!res.ok) throw new Error(res.status);
+          var release = await res.json();
+          latestReleaseEl.href = release.html_url || `${BASE_URL}/releases/latest`;
+          downloadStatusEl.textContent = 'Latest: ' + (release.name || release.tag_name || '');
+        } catch (_) {
+          downloadStatusEl.textContent = 'Download links are ready. If one fails, use "All releases".';
+        }
+      })();
+
+      /* ── Copy button ── */
+      copyBtnEl.addEventListener('click', function () {
+        var text = buildCodeEl.textContent.replace(/^#.*$/gm, '').replace(/\n{2,}/g, '\n').trim();
+        navigator.clipboard.writeText(text).then(function () {
+          copyBtnEl.querySelector('svg').style.display = 'none';
+          var origText = copyBtnEl.childNodes[copyBtnEl.childNodes.length - 1];
+          var prev = origText.textContent;
+          origText.textContent = ' Copied!';
+          setTimeout(function () {
+            origText.textContent = prev;
+            copyBtnEl.querySelector('svg').style.display = '';
+          }, 1500);
+        });
+      });
+
+      /* ── Scroll reveal (IntersectionObserver) ── */
+      (function initReveal() {
+        var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (prefersReduced) {
+          document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('visible'); });
+          return;
+        }
+        var observer = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('visible');
+              observer.unobserve(entry.target);
             }
           });
-
-          if (!response.ok) {
-            throw new Error(`GitHub API returned ${response.status}`);
-          }
-
-          const release = await response.json();
-          latestReleaseEl.href = release.html_url || releasesUrl;
-          statusEl.textContent = `Latest: ${release.name || release.tag_name || "(untitled)"}`;
-        } catch (err) {
-          statusEl.textContent = "Direct links are ready. If one fails, use \"All releases\".";
-          console.error(err);
-        }
-      }
-
-      main();
+        }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+        document.querySelectorAll('.reveal').forEach(function (el) { observer.observe(el); });
+      })();
     </script>
   </body>
 </html>
