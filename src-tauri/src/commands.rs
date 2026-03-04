@@ -3314,12 +3314,7 @@ fn dp_mark(points: &[(f64, f64)], keep: &mut [bool], start: usize, end: usize, t
     let mut max_distance = 0.0;
     let mut max_index = 0usize;
 
-    for (idx, point) in points
-        .iter()
-        .enumerate()
-        .take(end)
-        .skip(start + 1)
-    {
+    for (idx, point) in points.iter().enumerate().take(end).skip(start + 1) {
         let dist = point_line_distance(*point, start_point, end_point);
         if dist > max_distance {
             max_distance = dist;
@@ -3901,7 +3896,9 @@ pub async fn read_geojson_tile(
                     Some("auto"),
                     session.file_size_bytes,
                     session.total_features,
-                    device_profile.as_ref().and_then(|profile| profile.auto_cpu_cores),
+                    device_profile
+                        .as_ref()
+                        .and_then(|profile| profile.auto_cpu_cores),
                     device_profile
                         .as_ref()
                         .and_then(|profile| profile.auto_device_memory_gb),
